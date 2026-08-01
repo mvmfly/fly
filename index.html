@@ -279,7 +279,7 @@
     </div> 
 
     <script>
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxaC4esQ1a8iJYGE38ucUiADLAtRhbyj1OLPN7mpMnqJ9Slh1Q81L1-8zI1UX5gpcwr/exec'; 
 
         let allProfiles = [];
         let dataTree = { profiles: [], children: {} }; 
@@ -332,7 +332,6 @@
                 if(searchTerm) renderSearchResults(searchTerm);
                 else renderExplorer();
             }
-            // Removed populateFormDropdowns() from here so it doesn't overwrite triggerEdit() setup
             else if(viewId === 'profile-view') renderProfileData();
         }
 
@@ -843,7 +842,14 @@
 
             try {
                 const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
-                const res = await response.json();
+                const textRes = await response.text();
+                let res;
+                try {
+                    res = JSON.parse(textRes);
+                } catch(e) {
+                    throw new Error("Backend did not return valid data. Please ensure Google Apps Script is updated and deployed as 'New Version'.\n\nResponse received: " + textRes.substring(0, 100));
+                }
+                
                 if(res.status === 'success') {
                     this.reset();
                     document.getElementById('maneuvers-container').innerHTML = '';
@@ -853,6 +859,7 @@
                     window.history.back(); 
                 } else throw new Error(res.message);
             } catch(error) { 
+                alert("Error saving: " + error.message);
                 console.error(error); 
             } finally { 
                 btn.disabled = false; btn.textContent = originalBtnText; 
