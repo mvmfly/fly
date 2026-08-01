@@ -139,6 +139,7 @@
 
     <div class="container" id="main-container">
         
+        <!-- Menu View -->
         <div id="menu-view" class="view active" style="display: block; opacity: 1;">
              <h2><i class="fas fa-plane"></i> Fleet Selection</h2>
              <div class="flex-row" style="margin-bottom: 20px;">
@@ -155,6 +156,7 @@
              <button class="button button-secondary" style="width: 100%;" onclick="openSubmitForm()"><i class="fas fa-file-signature"></i> Submit New Profile</button>
         </div>
 
+        <!-- Explorer View -->
         <div id="explorer-view" class="view">
              <div class="breadcrumb" id="explorer-breadcrumb"></div>
              <h2 id="explorer-title">Explorer</h2>
@@ -173,6 +175,7 @@
              </div>
         </div>
 
+        <!-- Submit View -->
         <div id="submit-view" class="view">
              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <h2 style="margin: 0;" id="submit-header-title">Submit Sim Profile</h2>
@@ -195,7 +198,7 @@
                      <label>Session Type</label> 
                      <div class="flex-row">
                         <select id="submit-session" class="flex-grow" required onchange="handleFleetSessionChange()">
-                            <option value="" selected disabled>-- Select Session (e.g., Base Check) --</option>
+                            <option value="" selected disabled>-- Select Session --</option>
                             <option value="__add_new__">+ Create New Session Type</option>
                         </select>
                      </div>
@@ -204,24 +207,26 @@
 
                  <div class="form-section"> 
                      <label>Directory Path (Unlimited Subfolders)</label>
-                     <span class="sub-label">Leave as Root, or add nesting levels to file this profile into specific folders.</span>
+                     <span class="sub-label">Leave as Root, or specify/select nesting levels to file this profile into specific folders.</span>
                      <div id="dynamic-folders-container"></div>
                  </div>
                  
                  <div class="form-section"> 
                      <label>Profile Title</label> 
-                     <input type="text" id="submit-title" required placeholder="e.g. Profile A - WSSS EFATO">
+                     <input type="text" id="submit-title" required placeholder="e.g. Profile A - WSSS">
                  </div>
 
                  <div class="form-section"> 
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
                         <h3 style="margin: 0;">Manoeuvre/Condition Blocks</h3> 
-                        <button type="button" class="button button-secondary" onclick="addManeuver()" style="margin: 0;">+ Add Manoeuvre/Condition</button> 
+                        <button type="button" class="button button-secondary" id="btn-add-maneuver-top" onclick="addManeuver()" style="margin: 0;">+ Add Manoeuvre/Condition</button> 
                     </div>
                     
                     <div id="maneuvers-container" style="margin-top: 15px;"></div> 
                     
-                    <button type="button" class="button button-secondary" onclick="addManeuver()" style="margin-top: 10px; width: 100%;">+ Add Manoeuvre/Condition</button>
+                    <div style="display:flex; justify-content: flex-end; margin-top: 10px;">
+                        <button type="button" class="button button-secondary" id="btn-add-maneuver-bottom" onclick="addManeuver()" style="margin: 0; display: none;">+ Add Manoeuvre/Condition</button>
+                    </div>
                  </div>
 
                  <div class="form-section"> 
@@ -539,6 +544,16 @@
             document.getElementById('count-down').textContent = p.downvotes;
         }
 
+        function updateManeuverButtons() {
+            const container = document.getElementById('maneuvers-container');
+            const bottomBtn = document.getElementById('btn-add-maneuver-bottom');
+            if (container.children.length === 0) {
+                bottomBtn.style.display = 'none';
+            } else {
+                bottomBtn.style.display = 'inline-block';
+            }
+        }
+
         function openSubmitForm() {
             editingRowIndex = null;
             document.getElementById('entry-form').reset();
@@ -546,6 +561,7 @@
             document.getElementById('submit-btn').textContent = "Publish Profile";
             document.getElementById('maneuvers-container').innerHTML = '';
             document.getElementById('misc-notes').innerHTML = '';
+            updateManeuverButtons();
             
             populateFormDropdowns();
             dynamicPathLevels = [];
@@ -613,13 +629,14 @@
                 const div = document.createElement('div');
                 div.className = 'maneuver-block';
                 div.innerHTML = `
-                    <button type="button" class="button-delete" onclick="this.parentElement.remove()" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
+                    <button type="button" class="button-delete" onclick="this.parentElement.remove(); updateManeuverButtons();" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
                     <input type="text" placeholder="" class="m-name" value="${m.name}" required style="margin-bottom:10px; font-weight:bold;">
                     <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;">${m.callouts}</textarea>
                     <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2">${m.pointers}</textarea>
                 `;
                 mContainer.appendChild(div);
             });
+            updateManeuverButtons();
 
             goToView('submit-view', currentNavPath);
         }
@@ -645,6 +662,7 @@
             const sessSel = document.getElementById('submit-session');
             document.getElementById('session-new').style.display = sessSel.value === '__add_new__' ? 'block' : 'none';
             
+            dynamicPathLevels = [];
             renderDynamicFolders();
         }
 
@@ -666,17 +684,43 @@
             
             let currentTree = getTreeForCurrentFleetAndSession(); 
             
+            let needsNewLevel = false;
+            if (currentTree) {
+                let tempTree = currentTree;
+                let fullySelected = true;
+                for (let i=0; i<dynamicPathLevels.length; i++) {
+                    let val = dynamicPathLevels[i].selectedValue;
+                    if (!val || val === '__add_new__') {
+                        fullySelected = false;
+                        break;
+                    }
+                    if (tempTree && tempTree.children[val]) {
+                        tempTree = tempTree.children[val];
+                    } else {
+                        tempTree = null;
+                    }
+                }
+                if (fullySelected && tempTree && Object.keys(tempTree.children).length > 0) {
+                    needsNewLevel = true;
+                }
+            }
+
+            if (needsNewLevel) {
+                dynamicPathLevels.push({ selectedValue: '', newValue: '' });
+            }
+
+            currentTree = getTreeForCurrentFleetAndSession();
             for (let i = 0; i < dynamicPathLevels.length; i++) {
                 let levelState = dynamicPathLevels[i];
                 
-                let optionsHtml = `<option value="">-- Select Folder --</option>`;
+                let optionsHtml = `<option value="">-- No Subfolder (Save Here) --</option>`;
                 if (currentTree) {
                     Object.keys(currentTree.children).sort().forEach(f => {
                         optionsHtml += `<option value="${f}" ${levelState.selectedValue === f ? 'selected' : ''}>${f}</option>`;
                     });
                 }
                 
-                if (levelState.selectedValue && levelState.selectedValue !== '__add_new__' && currentTree && !currentTree.children[levelState.selectedValue]) {
+                if (levelState.selectedValue && levelState.selectedValue !== '__add_new__' && currentTree && (!currentTree.children || !currentTree.children[levelState.selectedValue])) {
                     optionsHtml += `<option value="${levelState.selectedValue}" selected>${levelState.selectedValue}</option>`;
                 }
 
@@ -728,12 +772,13 @@
             const div = document.createElement('div');
             div.className = 'maneuver-block';
             div.innerHTML = `
-                <button type="button" class="button-delete" onclick="this.parentElement.remove()" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
+                <button type="button" class="button-delete" onclick="this.parentElement.remove(); updateManeuverButtons();" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
                 <input type="text" placeholder="" class="m-name" required style="margin-bottom:10px; font-weight:bold;">
                 <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;"></textarea>
                 <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2"></textarea>
             `;
             document.getElementById('maneuvers-container').appendChild(div);
+            updateManeuverButtons();
         }
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
@@ -786,8 +831,9 @@
                     this.reset();
                     document.getElementById('maneuvers-container').innerHTML = '';
                     document.getElementById('misc-notes').innerHTML = '';
+                    updateManeuverButtons();
                     await fetchAllData();
-                    window.history.back(); // Automatically drops back to the previous view and reloads state
+                    window.history.back(); 
                 } else throw new Error(res.message);
             } catch(error) { 
                 console.error(error); 
