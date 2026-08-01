@@ -61,7 +61,7 @@
 
         .form-section { margin-bottom: 25px; width: 100%; }
         label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-heading); }
-        .sub-label { font-size: 0.85em; opacity: 0.8; margin-top: 10px; margin-bottom: 5px; display: block; }
+        .sub-label { font-size: 0.85em; opacity: 0.8; margin-bottom: 5px; display: block; }
         
         input[type="text"], select, textarea {
             width: 100%; padding: 12px; border-radius: 4px; border: 1px solid var(--input-border);
@@ -81,6 +81,7 @@
         .rich-input { width: 100%; min-height: 120px; padding: 12px; background: transparent; color: var(--text-main); border: none; outline: none; resize: vertical; overflow-y: auto; }
 
         .maneuver-block { background: rgba(0,0,0,0.2); padding: 15px; margin-bottom: 15px; border-left: 4px solid var(--accent); border-radius: 4px; position: relative; }
+        .folder-level { background: rgba(255,255,255,0.05); padding: 10px; border-left: 3px solid var(--accent); border-radius: 4px; margin-bottom: 10px; }
         
         .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .folder-card { 
@@ -146,7 +147,7 @@
                  </div>
              </div>
              <hr style="border-color: var(--glass-border); margin: 30px 0;">
-             <button class="button button-secondary" style="width: 100%;" onclick="navigateTo('submit-view')"><i class="fas fa-file-signature"></i> Submit New Profile</button>
+             <button class="button button-secondary" style="width: 100%;" onclick="openSubmitForm()"><i class="fas fa-file-signature"></i> Submit New Profile</button>
         </div>
 
         <div id="explorer-view" class="view">
@@ -163,13 +164,13 @@
 
              <div style="margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px;">
                  <button type="button" class="button button-back" onclick="navigateUp()">Back</button>
-                 <button type="button" class="button" onclick="navigateTo('submit-view')">+ Add Profile Here</button>
+                 <button type="button" class="button" onclick="openSubmitForm()">+ Add Profile Here</button>
              </div>
         </div>
 
         <div id="submit-view" class="view">
              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
-                <h2 style="margin: 0;">Submit Sim Profile</h2>
+                <h2 style="margin: 0;" id="submit-header-title">Submit Sim Profile</h2>
                 <button type="button" class="button button-back" onclick="navigateTo('menu-view')" style="margin: 0;">Cancel</button>
              </div>
              
@@ -177,7 +178,7 @@
                  <div class="form-section"> 
                      <label>Fleet Type</label> 
                      <div class="flex-row">
-                        <select id="submit-fleet" class="flex-grow" required onchange="handleFleetChange()">
+                        <select id="submit-fleet" class="flex-grow" required onchange="handleFleetSessionChange()">
                             <option value="" selected disabled>-- Select Fleet --</option>
                             <option value="__add_new__">+ Create New Fleet</option>
                         </select>
@@ -188,7 +189,7 @@
                  <div class="form-section"> 
                      <label>Session Type</label> 
                      <div class="flex-row">
-                        <select id="submit-session" class="flex-grow" required onchange="handleSessionChange()">
+                        <select id="submit-session" class="flex-grow" required onchange="handleFleetSessionChange()">
                             <option value="" selected disabled>-- Select Session (e.g., Base Check) --</option>
                             <option value="__add_new__">+ Create New Session Type</option>
                         </select>
@@ -197,13 +198,9 @@
                  </div>
 
                  <div class="form-section"> 
-                     <label>Directory Assignment</label> 
-                     <span class="sub-label">Select Parent Folder</span>
-                     <select id="submit-parent-folder">
-                         <option value="">-- Root Directory --</option>
-                     </select>
-                     <span class="sub-label">Create New Subfolder inside selected location (Optional)</span>
-                     <input type="text" id="submit-new-folder" placeholder="e.g. Day 1, EBT Cycle 2">
+                     <label>Directory Path (Unlimited Subfolders)</label>
+                     <span class="sub-label">Leave as Root, or add nesting levels to file this profile into specific folders.</span>
+                     <div id="dynamic-folders-container"></div>
                  </div>
                  
                  <div class="form-section"> 
@@ -233,7 +230,7 @@
                  </div>
 
                  <div class="form-section"> 
-                    <button type="submit" class="button" style="width: 100%;">Publish Profile</button> 
+                    <button type="submit" id="submit-btn" class="button" style="width: 100%;">Publish Profile</button> 
                  </div>
              </form>
         </div>
@@ -245,7 +242,10 @@
                  <div style="margin-bottom: 20px;">
                      <span class="badge" id="view-date"></span>
                  </div>
-                 <button type="button" class="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export EFB</button>
+                 <div style="display: flex; gap: 10px;">
+                     <button type="button" class="button button-secondary" onclick="triggerEdit()"><i class="fas fa-edit"></i> Edit</button>
+                     <button type="button" class="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export EFB</button>
+                 </div>
              </div>
 
              <div id="view-maneuvers"></div>
@@ -266,13 +266,16 @@
     </div> 
 
     <script>
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwIzE7tLjVK_FUrdB-kO9HiHctyl5URxDoxCZJKxaQMz-dOk7v_hACfGJ72XT09waLh/exec'; 
 
         let allProfiles = [];
         let dataTree = { profiles: [], children: {} }; 
         let isFetching = false;
         let currentNavPath = []; 
         let viewingRowIndex = null;
+        
+        let dynamicPathLevels = []; // Array of objects storing the state of each infinite folder level
+        let editingRowIndex = null; // Stores row ID if editing an existing profile
 
         document.addEventListener('DOMContentLoaded', async () => {
             createStars();
@@ -334,7 +337,7 @@
 
                         let pathParts = [profile.fleet, profile.sessionType];
                         if (profile.subFolder) {
-                            pathParts = pathParts.concat(profile.subFolder.split('/').map(s => s.trim()).filter(s => s));
+                            pathParts = pathParts.concat(profile.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
                         }
 
                         let current = dataTree;
@@ -366,9 +369,7 @@
                 active.style.display = 'block';
                 setTimeout(() => active.classList.add('active'), 10);
             }
-
             if(viewId === 'menu-view') renderMenu();
-            if(viewId === 'submit-view') populateFormDropdowns();
         }
 
         function navigateUp() {
@@ -471,7 +472,7 @@
             viewingRowIndex = rowIndex;
             
             let pathDisplay = p.fleet + ' > ' + p.sessionType;
-            if(p.subFolder) pathDisplay += ' > ' + p.subFolder.split('/').map(s=>s.trim()).join(' > ');
+            if(p.subFolder) pathDisplay += ' > ' + p.subFolder;
             
             document.getElementById('profile-breadcrumb').innerHTML = pathDisplay;
             document.getElementById('view-title').textContent = p.title;
@@ -503,64 +504,201 @@
             navigateTo('profile-view');
         }
 
-        function handleFleetChange() {
-            const fleetSel = document.getElementById('submit-fleet');
-            document.getElementById('fleet-new').style.display = fleetSel.value === '__add_new__' ? 'block' : 'none';
-            updateSessionDropdown();
-            updateFolderDropdown();
+        // --- SUBMIT / EDIT FORM LOGIC ---
+        function openSubmitForm() {
+            editingRowIndex = null;
+            document.getElementById('entry-form').reset();
+            document.getElementById('submit-header-title').textContent = "Submit Sim Profile";
+            document.getElementById('submit-btn').textContent = "Publish Profile";
+            document.getElementById('maneuvers-container').innerHTML = '';
+            document.getElementById('misc-notes').innerHTML = '';
+            
+            populateFormDropdowns();
+            dynamicPathLevels = [];
+            renderDynamicFolders();
+            
+            // Pre-select if we are inside a path
+            if (currentNavPath.length > 0) {
+                document.getElementById('submit-fleet').value = currentNavPath[0];
+                handleFleetSessionChange();
+                if (currentNavPath.length > 1) {
+                    document.getElementById('submit-session').value = currentNavPath[1];
+                    handleFleetSessionChange();
+                    
+                    // Populate infinite folders if we navigated deep
+                    if (currentNavPath.length > 2) {
+                        for(let i=2; i<currentNavPath.length; i++){
+                            dynamicPathLevels.push({ selectedValue: currentNavPath[i], newValue: '' });
+                        }
+                        renderDynamicFolders();
+                    }
+                }
+            }
+            navigateTo('submit-view');
         }
 
-        function handleSessionChange() {
-            const sessSel = document.getElementById('submit-session');
-            document.getElementById('session-new').style.display = sessSel.value === '__add_new__' ? 'block' : 'none';
-            updateFolderDropdown();
+        function triggerEdit() {
+            if(!viewingRowIndex) return;
+            const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
+            if(!p) return;
+
+            editingRowIndex = viewingRowIndex;
+            document.getElementById('submit-header-title').textContent = "Edit Sim Profile";
+            document.getElementById('submit-btn').textContent = "Save Changes";
+            document.getElementById('entry-form').reset();
+            
+            populateFormDropdowns();
+            
+            // Set Fleet and Session
+            document.getElementById('submit-fleet').value = p.fleet;
+            if(!document.getElementById('submit-fleet').value) { // If custom fleet that wasn't loaded properly
+                document.getElementById('submit-fleet').value = "__add_new__";
+                document.getElementById('fleet-new').value = p.fleet;
+            }
+            
+            handleFleetSessionChange(); // Re-render available sessions based on fleet
+
+            document.getElementById('submit-session').value = p.sessionType;
+            if(!document.getElementById('submit-session').value) {
+                document.getElementById('submit-session').value = "__add_new__";
+                document.getElementById('session-new').value = p.sessionType;
+            }
+            
+            // Set Subfolders
+            dynamicPathLevels = [];
+            if (p.subFolder) {
+                const parts = p.subFolder.split(' / ');
+                parts.forEach(part => {
+                    dynamicPathLevels.push({ selectedValue: part, newValue: '' });
+                });
+            }
+            renderDynamicFolders();
+
+            // Set Title & Notes
+            document.getElementById('submit-title').value = p.title;
+            document.getElementById('misc-notes').innerHTML = p.miscNotes;
+
+            // Set Maneuvers
+            const mContainer = document.getElementById('maneuvers-container');
+            mContainer.innerHTML = '';
+            p.maneuvers.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'maneuver-block';
+                div.innerHTML = `
+                    <button type="button" class="button-delete" onclick="this.parentElement.remove()" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
+                    <input type="text" placeholder="Maneuver Name (e.g. EFATO)" class="m-name" value="${m.name}" required style="margin-bottom:10px; font-weight:bold;">
+                    <textarea placeholder="Power settings, pitch targets, callouts..." class="m-callouts" rows="2" style="margin-bottom:10px;">${m.callouts}</textarea>
+                    <textarea placeholder="Learning pointers, common traps..." class="m-pointers" rows="2">${m.pointers}</textarea>
+                `;
+                mContainer.appendChild(div);
+            });
+
+            navigateTo('submit-view');
         }
 
         function populateFormDropdowns() {
             const fleetSel = document.getElementById('submit-fleet');
-            fleetSel.innerHTML = '<option value="" selected disabled>-- Select Fleet --</option><option value="__add_new__">+ Create New Fleet</option>';
-            Object.keys(dataTree.children).sort().forEach(f => {
-                fleetSel.innerHTML += `<option value="${f}">${f}</option>`;
-            });
-            
-            document.getElementById('submit-session').innerHTML = '<option value="" selected disabled>-- Select Session --</option><option value="__add_new__">+ Create New Session Type</option>';
-            document.getElementById('submit-parent-folder').innerHTML = '<option value="">-- Root Directory --</option>';
-        }
-
-        function updateSessionDropdown() {
-            const fleet = document.getElementById('submit-fleet').value;
             const sessSel = document.getElementById('submit-session');
+            
+            fleetSel.innerHTML = '<option value="" selected disabled>-- Select Fleet --</option><option value="__add_new__">+ Create New Fleet</option>';
             sessSel.innerHTML = '<option value="" selected disabled>-- Select Session --</option><option value="__add_new__">+ Create New Session Type</option>';
-            if (fleet && fleet !== '__add_new__' && dataTree.children[fleet]) {
-                Object.keys(dataTree.children[fleet].children).sort().forEach(s => {
-                    sessSel.innerHTML += `<option value="${s}">${s}</option>`;
-                });
-            }
+
+            Object.keys(dataTree.children).sort().forEach(f => { fleetSel.innerHTML += `<option value="${f}">${f}</option>`; });
+
+            let allSessions = new Set();
+            Object.values(dataTree.children).forEach(fleetObj => Object.keys(fleetObj.children).forEach(s => allSessions.add(s)));
+            Array.from(allSessions).sort().forEach(s => { sessSel.innerHTML += `<option value="${s}">${s}</option>`; });
         }
 
-        function updateFolderDropdown() {
-            const fleet = document.getElementById('submit-fleet').value;
-            const session = document.getElementById('submit-session').value;
-            const folderSel = document.getElementById('submit-parent-folder');
-            folderSel.innerHTML = '<option value="">-- Root Directory --</option>';
+        function handleFleetSessionChange() {
+            const fleetSel = document.getElementById('submit-fleet');
+            document.getElementById('fleet-new').style.display = fleetSel.value === '__add_new__' ? 'block' : 'none';
             
-            if (fleet && fleet !== '__add_new__' && session && session !== '__add_new__' && dataTree.children[fleet] && dataTree.children[fleet].children[session]) {
-                const sessionNode = dataTree.children[fleet].children[session];
+            const sessSel = document.getElementById('submit-session');
+            document.getElementById('session-new').style.display = sessSel.value === '__add_new__' ? 'block' : 'none';
+            
+            // Validate paths dynamically against new trees
+            renderDynamicFolders();
+        }
+
+        // --- INFINITE SUBFOLDER LOGIC ---
+        function getTreeForCurrentFleetAndSession() {
+            let fleet = document.getElementById('submit-fleet').value;
+            if(fleet === '__add_new__' || !fleet) return null; 
+            let session = document.getElementById('submit-session').value;
+            if(session === '__add_new__' || !session) return null;
+            
+            if(dataTree.children[fleet] && dataTree.children[fleet].children[session]) {
+                return dataTree.children[fleet].children[session];
+            }
+            return null;
+        }
+
+        function renderDynamicFolders() {
+            const container = document.getElementById('dynamic-folders-container');
+            container.innerHTML = '';
+            
+            let currentTree = getTreeForCurrentFleetAndSession(); 
+            
+            for (let i = 0; i < dynamicPathLevels.length; i++) {
+                let levelState = dynamicPathLevels[i];
                 
-                const paths = [];
-                function traverse(node, currentPath) {
-                    Object.keys(node.children).forEach(folderName => {
-                        const newPath = currentPath ? currentPath + ' / ' + folderName : folderName;
-                        paths.push(newPath);
-                        traverse(node.children[folderName], newPath);
+                let optionsHtml = `<option value="">-- Select Folder --</option>`;
+                if (currentTree) {
+                    Object.keys(currentTree.children).sort().forEach(f => {
+                        optionsHtml += `<option value="${f}" ${levelState.selectedValue === f ? 'selected' : ''}>${f}</option>`;
                     });
                 }
-                traverse(sessionNode, "");
                 
-                paths.sort().forEach(p => {
-                    folderSel.innerHTML += `<option value="${p}">${p}</option>`;
-                });
+                // If editing and the folder exists in data but not strictly in the dropdown, add it to options
+                if (levelState.selectedValue && levelState.selectedValue !== '__add_new__' && currentTree && !currentTree.children[levelState.selectedValue]) {
+                    optionsHtml += `<option value="${levelState.selectedValue}" selected>${levelState.selectedValue}</option>`;
+                }
+
+                optionsHtml += `<option value="__add_new__" ${levelState.selectedValue === '__add_new__' ? 'selected' : ''}>+ Create New Subfolder</option>`;
+                
+                let levelHtml = `
+                    <div class="folder-level">
+                        <label style="font-size: 0.9em;">Subfolder Level ${i + 1}</label>
+                        <div class="flex-row">
+                            <select class="flex-grow" onchange="handleFolderSelectChange(${i}, this.value)">
+                                ${optionsHtml}
+                            </select>
+                            <button type="button" class="button button-delete" onclick="removeFolderLevel(${i})" style="margin: 0;"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <input type="text" style="display: ${levelState.selectedValue === '__add_new__' ? 'block' : 'none'}; margin-top: 5px;" placeholder="Enter new folder name" value="${levelState.newValue}" oninput="handleFolderNewInput(${i}, this.value)">
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', levelHtml);
+                
+                // Advance pointer deeper into the tree if selecting an existing node
+                if (levelState.selectedValue && levelState.selectedValue !== '__add_new__') {
+                    currentTree = currentTree ? currentTree.children[levelState.selectedValue] : null;
+                } else {
+                    currentTree = null;
+                }
             }
+            
+            container.insertAdjacentHTML('beforeend', `<button type="button" class="button button-secondary" onclick="addFolderLevel()" style="padding: 8px 12px; font-size: 0.9em; margin-top: 5px;"><i class="fas fa-plus"></i> Add Subfolder Layer</button>`);
+        }
+
+        function handleFolderSelectChange(index, value) {
+            dynamicPathLevels[index].selectedValue = value;
+            // Truncate any levels beneath this one because the parent path changed
+            dynamicPathLevels = dynamicPathLevels.slice(0, index + 1);
+            renderDynamicFolders();
+        }
+
+        function handleFolderNewInput(index, value) { dynamicPathLevels[index].newValue = value; }
+        
+        function addFolderLevel() {
+            dynamicPathLevels.push({ selectedValue: '', newValue: '' });
+            renderDynamicFolders();
+        }
+
+        function removeFolderLevel(index) {
+            dynamicPathLevels.splice(index, 1);
+            renderDynamicFolders();
         }
 
         function addManeuver() {
@@ -580,7 +718,8 @@
         document.getElementById('entry-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type="submit"]');
-            btn.disabled = true; btn.textContent = "Publishing...";
+            const originalBtnText = btn.textContent;
+            btn.disabled = true; btn.textContent = "Saving...";
 
             let fleet = document.getElementById('submit-fleet').value;
             if(fleet === '__add_new__') fleet = document.getElementById('fleet-new').value.trim();
@@ -588,13 +727,19 @@
             let session = document.getElementById('submit-session').value;
             if(session === '__add_new__') session = document.getElementById('session-new').value.trim();
 
-            let parentF = document.getElementById('submit-parent-folder').value;
-            let newF = document.getElementById('submit-new-folder').value.trim();
-            let finalSubFolder = parentF;
-            if (newF) finalSubFolder = parentF ? parentF + ' / ' + newF : newF;
+            // Compile the dynamic folder path
+            let finalPathArray = [];
+            for(let i=0; i<dynamicPathLevels.length; i++) {
+                let val = dynamicPathLevels[i].selectedValue;
+                if(val === '__add_new__') val = dynamicPathLevels[i].newValue.trim();
+                if(val) finalPathArray.push(val);
+            }
+            let finalSubFolder = finalPathArray.join(' / ');
 
             const formData = new URLSearchParams();
-            formData.append('action', 'submit_profile');
+            formData.append('action', editingRowIndex ? 'edit_profile' : 'submit_profile');
+            if (editingRowIndex) formData.append('rowIndex', editingRowIndex);
+            
             formData.append('fleet', fleet);
             formData.append('sessionType', session);
             formData.append('subFolder', finalSubFolder);
@@ -620,12 +765,16 @@
                     document.getElementById('maneuvers-container').innerHTML = '';
                     document.getElementById('misc-notes').innerHTML = '';
                     await fetchAllData();
-                    navigateTo('menu-view');
+                    if(editingRowIndex) {
+                        viewProfile(editingRowIndex); // Return directly to the profile view if editing
+                    } else {
+                        navigateTo('menu-view');
+                    }
                 } else throw new Error(res.message);
             } catch(error) { 
                 console.error(error); 
             } finally { 
-                btn.disabled = false; btn.textContent = "Publish Profile"; 
+                btn.disabled = false; btn.textContent = originalBtnText; 
             }
         });
 
