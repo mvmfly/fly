@@ -170,7 +170,7 @@
              <div id="profile-list"></div>
 
              <div style="margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px;">
-                 <button type="button" class="button button-back" onclick="window.history.back()">Back</button>
+                 <button type="button" class="button button-back" onclick="navigateUp()">Back</button>
                  <button type="button" class="button" onclick="openSubmitForm()">+ Add Profile Here</button>
              </div>
         </div>
@@ -179,7 +179,7 @@
         <div id="submit-view" class="view">
              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <h2 style="margin: 0;" id="submit-header-title">Submit Sim Profile</h2>
-                <button type="button" class="button button-back" onclick="window.history.back()" style="margin: 0;">Cancel</button>
+                <button type="button" class="button button-back" onclick="goToView('explorer-view', currentNavPath)" style="margin: 0;">Cancel</button>
              </div>
              
              <form id="entry-form">
@@ -273,13 +273,13 @@
                  <button class="button" style="background: #e65100;" onclick="submitMetric('flag')"><i class="fas fa-flag"></i> Flag Nuisance</button>
              </div>
              
-             <button type="button" class="button button-back" onclick="window.history.back()" style="margin-top: 20px;">Back</button>
+             <button type="button" class="button button-back" onclick="goToView('explorer-view', currentNavPath)" style="margin-top: 20px;">Back</button>
         </div>
 
     </div> 
 
     <script>
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxaC4esQ1a8iJYGE38ucUiADLAtRhbyj1OLPN7mpMnqJ9Slh1Q81L1-8zI1UX5gpcwr/exec'; 
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
 
         let allProfiles = [];
         let dataTree = { profiles: [], children: {} }; 
@@ -411,6 +411,20 @@
 
         function parseJSON(str) { try { return JSON.parse(str); } catch(e) { return []; } }
 
+        function navigateUp() {
+            if(currentNavPath.length > 0) {
+                let newPath = [...currentNavPath];
+                newPath.pop();
+                if(newPath.length === 0) {
+                    goToView('menu-view', []);
+                } else {
+                    goToView('explorer-view', newPath);
+                }
+            } else {
+                goToView('menu-view', []);
+            }
+        }
+
         function openNode(nodeName) {
             let newPath = [...currentNavPath, nodeName];
             goToView('explorer-view', newPath);
@@ -504,7 +518,7 @@
             if(!p) return;
             
             let pathDisplay = p.fleet + ' > ' + p.sessionType;
-            if(p.subFolder) pathDisplay += ' > ' + p.subFolder.split('/').map(s=>s.trim()).join(' > ');
+            if(p.subFolder) pathDisplay += ' > ' + p.subFolder.split(' / ').map(s=>s.trim()).join(' > ');
             
             document.getElementById('profile-breadcrumb').innerHTML = pathDisplay;
             document.getElementById('view-title').textContent = p.title;
@@ -515,7 +529,7 @@
                 let day = String(d.getDate()).padStart(2, '0');
                 let month = String(d.getMonth() + 1).padStart(2, '0');
                 let year = String(d.getFullYear()).slice(-2);
-                dateStr = `${day}${month}${year}`;
+                dateStr = `${day}/${month}/${year}`;
             }
             document.getElementById('view-date').textContent = `Submitted: ${dateStr}`;
 
@@ -564,30 +578,32 @@
             
             populateFormDropdowns();
             dynamicPathLevels = [];
-            renderDynamicFolders();
             
             if (currentNavPath.length > 0) {
                 let fSelect = document.getElementById('submit-fleet');
                 let fOptions = Array.from(fSelect.options).map(o => o.value);
-                if(fOptions.includes(currentNavPath[0])) fSelect.value = currentNavPath[0];
+                if(fOptions.includes(currentNavPath[0])) {
+                    fSelect.value = currentNavPath[0];
+                    document.getElementById('fleet-new').style.display = 'none';
+                }
 
-                handleFleetSessionChange();
-                
                 if (currentNavPath.length > 1) {
                     let sSelect = document.getElementById('submit-session');
                     let sOptions = Array.from(sSelect.options).map(o => o.value);
-                    if(sOptions.includes(currentNavPath[1])) sSelect.value = currentNavPath[1];
-                    
-                    handleFleetSessionChange();
+                    if(sOptions.includes(currentNavPath[1])) {
+                        sSelect.value = currentNavPath[1];
+                        document.getElementById('session-new').style.display = 'none';
+                    }
                     
                     if (currentNavPath.length > 2) {
                         for(let i=2; i<currentNavPath.length; i++){
                             dynamicPathLevels.push({ selectedValue: currentNavPath[i], newValue: '' });
                         }
-                        renderDynamicFolders();
                     }
                 }
             }
+            
+            renderDynamicFolders();
             goToView('submit-view', currentNavPath);
         }
 
@@ -613,8 +629,6 @@
                 document.getElementById('fleet-new').value = p.fleet;
                 document.getElementById('fleet-new').style.display = 'block';
             }
-            
-            handleFleetSessionChange(); 
 
             let sSelect = document.getElementById('submit-session');
             let sOptions = Array.from(sSelect.options).map(o => o.value);
@@ -634,6 +648,7 @@
                     dynamicPathLevels.push({ selectedValue: part, newValue: '' });
                 });
             }
+            
             renderDynamicFolders();
 
             document.getElementById('submit-title').value = p.title;
@@ -856,7 +871,12 @@
                     document.getElementById('misc-notes').innerHTML = '';
                     updateManeuverButtons();
                     await fetchAllData();
-                    window.history.back(); 
+                    
+                    if(editingRowIndex) {
+                        goToView('profile-view', currentNavPath, editingRowIndex);
+                    } else {
+                        goToView('explorer-view', currentNavPath);
+                    }
                 } else throw new Error(res.message);
             } catch(error) { 
                 alert("Error saving: " + error.message);
