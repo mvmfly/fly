@@ -2,203 +2,140 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Simulator Training Database</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* --- CSS VARIABLES & THEMES --- */
+        /* --- CSS VARIABLES (NIGHT MODE ONLY) --- */
         :root {
-            /* SCI-FI THEME (Night) */
-            --bg-grad-start-night: #05070a;
-            --bg-grad-mid-night: #0b1021;
-            --bg-grad-end-night: #05070a;
-            --glass-bg-night: rgba(10, 15, 30, 0.75);
-            --glass-border-night: rgba(0, 229, 255, 0.15); 
-            --text-main-night: #cdd6f4;
-            --text-heading-night: #00e5ff; 
-            --accent-night: #00bcd4; 
-            --card-bg-night: rgba(0, 0, 0, 0.5);
-            --card-shadow-night: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-            --btn-text-night: #000;
-            --input-bg-night: rgba(255, 255, 255, 0.05);
-            --input-border-night: rgba(0, 229, 255, 0.2);
-            
-            /* SOPHISTICATED DAY THEME */
-            --bg-grad-start-day: #e0eafc;
-            --bg-grad-end-day: #cfdef3; 
-            --glass-bg-day: rgba(255, 255, 255, 0.95);
-            --glass-border-day: rgba(44, 62, 80, 0.1);
-            --text-main-day: #34495e;
-            --text-heading-day: #2c3e50; 
-            --accent-day: #2c3e50; 
-            --card-bg-day: #ffffff;
-            --card-shadow-day: 0 4px 15px rgba(0, 0, 0, 0.05);
-            --btn-text-day: #ffffff;
-            --input-bg-day: #f8f9fa;
-            --input-border-day: #b0bec5;
-
-            /* Active Variables */
-            --bg-grad-start: var(--bg-grad-start-night);
-            --bg-grad-end: var(--bg-grad-end-night);
-            --glass-bg: var(--glass-bg-night);
-            --glass-border: var(--glass-border-night);
-            --text-main: var(--text-main-night);
-            --text-heading: var(--text-heading-night);
-            --accent: var(--accent-night);
-            --card-bg: var(--card-bg-night);
-            --card-shadow: var(--card-shadow-night);
-            --input-bg: var(--input-bg-night);
-            --input-border: var(--input-border-night);
-            --btn-text: var(--btn-text-night);
-            --planet-opacity: 0.6;
-        }
-
-        body.day-mode {
-            --bg-grad-start: var(--bg-grad-start-day);
-            --bg-grad-end: var(--bg-grad-end-day);
-            --glass-bg: var(--glass-bg-day);
-            --glass-border: var(--glass-border-day);
-            --text-main: var(--text-main-day);
-            --text-heading: var(--text-heading-day);
-            --accent: var(--accent-day);
-            --card-bg: var(--card-bg-day);
-            --card-shadow: var(--card-shadow-day);
-            --input-bg: var(--input-bg-day);
-            --input-border: var(--input-border-day);
-            --btn-text: var(--btn-text-day);
-            --planet-opacity: 0; 
+            --bg-grad-start: #05070a;
+            --bg-grad-mid: #0b1021;
+            --bg-grad-end: #05070a;
+            --glass-bg: rgba(10, 15, 30, 0.75);
+            --glass-border: rgba(0, 229, 255, 0.15); 
+            --text-main: #cdd6f4;
+            --text-heading: #00e5ff; 
+            --accent: #00bcd4; 
+            --card-bg: rgba(0, 0, 0, 0.5);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+            --btn-text: #000;
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --input-border: rgba(0, 229, 255, 0.2);
         }
 
         /* --- GLOBAL STYLES --- */
+        * { box-sizing: border-box; }
         html, body {
             margin: 0; padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             width: 100%; min-height: 100vh;
             color: var(--text-main);
             overflow-x: hidden;
-            background-color: #05070a; 
-            transition: all 0.5s ease;
+            background-color: var(--bg-grad-start); 
         }
 
         /* --- BACKGROUND LAYERS --- */
         .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        #bg-gradient { z-index: -10; background: radial-gradient(circle at center, var(--bg-grad-mid-night, #0b1021) 0%, var(--bg-grad-start) 100%); transition: background 0.5s ease; }
-        body.day-mode #bg-gradient { background: linear-gradient(135deg, var(--bg-grad-start-day), var(--bg-grad-end-day)); }
-        #space-elements { z-index: -5; transition: opacity 0.5s ease; }
-        
+        #bg-gradient { z-index: -10; background: radial-gradient(circle at center, var(--bg-grad-mid) 0%, var(--bg-grad-start) 100%); }
+        #space-elements { z-index: -5; }
         .star { position: absolute; background: white; border-radius: 50%; animation: twinkle linear infinite; opacity: 0; }
         @keyframes twinkle { 0% { opacity: 0; } 50% { opacity: 0.8; } 100% { opacity: 0; } }
 
         /* --- LAYOUT & CONTAINER --- */
         .container {
-            width: 90%; max-width: 1000px;
-            margin: 80px auto 40px auto; padding: 30px;
+            width: 95%; max-width: 1000px;
+            margin: 40px auto 40px auto; padding: 30px;
             background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            border-radius: 2px; border: 1px solid var(--glass-border);
-            box-shadow: var(--card-shadow); clip-path: polygon(0 0, 100% 0, 100% 98%, 98% 100%, 0 100%); 
-            transition: all 0.3s ease; position: relative; z-index: 1;
+            border-radius: 8px; border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow); position: relative; z-index: 1;
         }
-        body.day-mode .container { border-radius: 12px; clip-path: none; border: 1px solid rgba(0,0,0,0.05); }
 
-        .header-controls { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; align-items: center; gap: 10px; }
-        
         h2, h3, h4 { color: var(--text-heading); margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
         h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 25px; font-weight: 700; }
-        body.day-mode h2, body.day-mode h3 { text-transform: none; letter-spacing: 0.5px; }
 
         /* --- BUTTONS --- */
         .button {
-            padding: 12px 24px; font-size: 15px; cursor: pointer; border: none; border-radius: 2px;
+            padding: 12px 24px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px;
             background: var(--accent); color: var(--btn-text); font-weight: bold;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.15); transition: all 0.2s; margin: 5px; text-transform: uppercase; box-sizing: border-box;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.15); transition: all 0.2s; text-transform: uppercase;
+            display: inline-block; text-align: center;
         }
-        body.day-mode .button { border-radius: 6px; box-shadow: none; text-transform: none; }
         .button:hover { filter: brightness(1.2); box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); }
-        body.day-mode .button:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); filter: brightness(1.1); }
         .button-secondary, .button-back { background: #37474f; color: #eceff1; }
-        body.day-mode .button-secondary, body.day-mode .button-back { background: #78909c; color: #fff; }
-        .button-delete { background: #c62828; color: white; padding: 8px; border-radius: 4px; border: none; cursor: pointer; }
+        .button-delete { background: #c62828; color: white; padding: 8px 12px; border-radius: 4px; border: none; cursor: pointer; }
 
         /* --- FORMS & INPUTS --- */
-        .form-section { margin-bottom: 25px; }
+        .form-section { margin-bottom: 25px; width: 100%; }
         label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-heading); }
         
         input[type="text"], select, textarea {
-            width: 100%; padding: 12px; border-radius: 2px; border: 1px solid var(--input-border);
-            background: var(--input-bg); color: var(--text-main); font-size: 15px; box-sizing: border-box;
-            transition: all 0.3s; font-family: 'Consolas', monospace; 
+            width: 100%; padding: 12px; border-radius: 4px; border: 1px solid var(--input-border);
+            background: var(--input-bg); color: var(--text-main); font-size: 15px;
+            font-family: 'Consolas', monospace; outline: none;
         }
-        body.day-mode input[type="text"], body.day-mode select, body.day-mode textarea { 
-            font-family: 'Segoe UI', sans-serif; border-radius: 6px; background: #fff; color: #333;
-        }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px var(--accent); background: rgba(0, 229, 255, 0.05); }
-        body.day-mode input:focus, body.day-mode textarea:focus { background: #fff; box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1); }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 10px var(--accent); background: rgba(0, 229, 255, 0.05); }
         select option { background-color: #0b1021; color: #e0e0e0; }
-        body.day-mode select option { background-color: #ffffff; color: #2c3e50; }
 
-        .flex-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        .flex-grow { flex-grow: 1; }
+        .flex-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+        .flex-grow { flex-grow: 1; min-width: 200px; }
 
         /* --- RICH TEXT TOOLBAR --- */
-        .rich-text-container { border: 1px solid var(--input-border); border-radius: 2px; overflow: hidden; background: var(--input-bg); }
-        body.day-mode .rich-text-container { background: #fff; border-radius: 6px; }
-        .toolbar { padding: 5px 10px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--input-border); display: flex; gap: 5px; }
-        body.day-mode .toolbar { background: #eceff1; }
-        .toolbar button { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; border-radius: 4px; font-weight: bold; }
+        .rich-text-container { border: 1px solid var(--input-border); border-radius: 4px; overflow: hidden; background: var(--input-bg); }
+        .toolbar { padding: 5px 10px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--input-border); display: flex; gap: 5px; flex-wrap: wrap; }
+        .toolbar button { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 8px; border-radius: 4px; font-weight: bold; }
         .toolbar button:hover { background: rgba(0,229,255,0.2); color: var(--accent); }
-        .rich-input { width: 100%; min-height: 100px; padding: 12px; background: transparent; color: var(--text-main); border: none; outline: none; resize: vertical; overflow-y: auto; }
-        body.day-mode .rich-input { color: #333; font-family: sans-serif; }
+        .rich-input { width: 100%; min-height: 120px; padding: 12px; background: transparent; color: var(--text-main); border: none; outline: none; resize: vertical; overflow-y: auto; }
 
         /* --- MANEUVER BLOCKS --- */
         .maneuver-block { background: rgba(0,0,0,0.2); padding: 15px; margin-bottom: 15px; border-left: 4px solid var(--accent); border-radius: 4px; position: relative; }
-        body.day-mode .maneuver-block { background: #f8f9fa; border: 1px solid #e0e0e0; border-left: 4px solid var(--accent); }
         
         /* --- FOLDERS & DATA LISTS --- */
-        .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .folder-card { 
-            background: var(--card-bg); padding: 20px; border-radius: 4px; border: 1px solid var(--glass-border); 
+            background: var(--card-bg); padding: 20px; border-radius: 6px; border: 1px solid var(--glass-border); 
             cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 15px; font-weight: bold;
+            word-break: break-word;
         }
-        body.day-mode .folder-card { border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .folder-card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 5px 15px rgba(0,229,255,0.1); }
         .folder-card i { font-size: 1.5em; color: var(--accent); }
 
         .profile-list-item { 
-            background: var(--card-bg); padding: 15px; margin-bottom: 10px; border-radius: 4px; 
+            background: var(--card-bg); padding: 15px; margin-bottom: 10px; border-radius: 6px; 
             border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; 
+            flex-wrap: wrap; gap: 10px;
         }
-        body.day-mode .profile-list-item { border: 1px solid #e0e0e0; border-radius: 6px; }
         .profile-list-item:hover { border-color: var(--accent); }
 
         /* --- PROFILE VIEW & BADGES --- */
-        .badge { display: inline-block; padding: 4px 8px; font-size: 0.8em; border-radius: 4px; background: #37474f; margin-right: 5px; }
-        .warning-banner { background: rgba(198, 40, 40, 0.2); border-left: 4px solid #c62828; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
-        .vote-bar { display: flex; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--glass-border); }
+        .badge { display: inline-block; padding: 6px 10px; font-size: 0.85em; border-radius: 4px; background: #37474f; margin-right: 5px; margin-bottom: 5px;}
+        .vote-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--glass-border); }
 
-        /* --- VIEWS --- */
+        /* --- VIEWS & NAVIGATION --- */
         .view { display: none; opacity: 0; transition: opacity 0.4s ease; }
         .view.active { display: block; opacity: 1; }
+        
+        .breadcrumb { font-size: 0.9em; opacity: 0.8; margin-bottom: 20px; font-family: monospace; word-wrap: break-word; }
+        .breadcrumb span { cursor: pointer; color: var(--accent); }
+        .breadcrumb span:hover { text-decoration: underline; }
 
-        /* --- TOGGLE SWITCH --- */
-        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; border: 1px solid #555; }
-        .slider:before { position: absolute; content: "🌙"; display:flex; align-items: center; justify-content: center; height: 24px; width: 24px; left: 3px; bottom: 2px; background-color: #1a1a1a; transition: .4s; border-radius: 50%; font-size: 14px; }
-        input:checked + .slider { background-color: #cfd8dc; border-color: #b0bec5; }
-        input:checked + .slider:before { transform: translateX(28px); content: "☀️"; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        /* --- MOBILE & IPAD RESPONSIVENESS --- */
+        @media (max-width: 768px) {
+            .container { width: 100%; margin: 20px auto; padding: 15px; border: none; border-radius: 0; }
+            .folder-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+            .flex-row { flex-direction: column; }
+            .button { width: 100%; margin: 5px 0; }
+            .vote-bar { flex-direction: column; }
+            .vote-bar .flex-grow { display: none; }
+        }
 
         /* --- PRINT STYLES FOR EFB --- */
         @media print {
             body { background: #121212 !important; color: #fff !important; } 
-            .bg-layer, .header-controls, .button-back, .vote-bar { display: none !important; }
-            .container { box-shadow: none; border: none; margin: 0; padding: 0; width: 100%; clip-path: none; background: transparent; }
+            .bg-layer, .button, .vote-bar { display: none !important; }
+            .container { box-shadow: none; border: none; margin: 0; padding: 0; width: 100%; background: transparent; }
             .maneuver-block { page-break-inside: avoid; border-left: 4px solid #fff; }
             h2, h3, h4 { color: #fff !important; }
         }
-
-        .breadcrumb { font-size: 0.9em; opacity: 0.8; margin-bottom: 20px; font-family: monospace; }
-        .breadcrumb span { cursor: pointer; color: var(--accent); }
-        .breadcrumb span:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -207,26 +144,17 @@
     <div id="bg-gradient" class="bg-layer"></div>
     <div id="space-elements" class="bg-layer"><div id="stars-container"></div></div>
 
-    <!-- Mode Toggle -->
-    <div class="header-controls">
-        <label class="switch" title="Toggle Day/Night Mode">
-            <input type="checkbox" id="darkModeToggle">
-            <span class="slider round"></span>
-        </label>
-    </div>
-
     <!-- Main App Container -->
     <div class="container" id="main-container">
         
-        <!-- Menu View (Fleets) - FORCED ACTIVE ON LOAD SO UI IS NEVER BLANK -->
+        <!-- Menu View (Fleets) -->
         <div id="menu-view" class="view active" style="display: block; opacity: 1;">
              <h2><i class="fas fa-plane"></i> Fleet Selection</h2>
              <div class="flex-row" style="margin-bottom: 20px;">
                  <input type="text" id="search-box" class="flex-grow" placeholder="Search profiles, maneuvers...">
-                 <button class="button" onclick="performSearch()"><i class="fas fa-search"></i></button>
+                 <button class="button" onclick="performSearch()" style="width: auto;"><i class="fas fa-search"></i></button>
              </div>
              <div id="fleet-grid" class="folder-grid">
-                 <!-- Immediate visual feedback before database connects -->
                  <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
                      <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: var(--accent); margin-bottom: 15px;"></i><br>
                      Establishing connection to database...
@@ -249,7 +177,7 @@
              <h3 style="margin-top: 30px;"><i class="fas fa-file-alt"></i> Profiles</h3>
              <div id="profile-list"></div>
 
-             <div style="margin-top: 30px; display: flex; gap: 10px;">
+             <div style="margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px;">
                  <button type="button" class="button button-back" onclick="navigateUp()">Back</button>
                  <button type="button" class="button" onclick="navigateTo('submit-view')">+ Add Profile Here</button>
              </div>
@@ -257,16 +185,16 @@
 
         <!-- Submit View -->
         <div id="submit-view" class="view">
-             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2>Submit Sim Profile</h2>
-                <button type="button" class="button button-back" onclick="navigateTo('menu-view')">Cancel</button>
+             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Submit Sim Profile</h2>
+                <button type="button" class="button button-back" onclick="navigateTo('menu-view')" style="margin: 0;">Cancel</button>
              </div>
              
              <form id="entry-form">
                  <div class="form-section"> 
                      <label>Fleet Type</label> 
                      <div class="flex-row">
-                        <select id="submit-fleet" class="flex-grow" required onchange="checkNewInput('submit-fleet', 'fleet-new')">
+                        <select id="submit-fleet" class="flex-grow" required onchange="handleFleetChange()">
                             <option value="" selected disabled>-- Select Fleet --</option>
                             <option value="__add_new__">+ Create New Fleet</option>
                         </select>
@@ -277,7 +205,7 @@
                  <div class="form-section"> 
                      <label>Session Type</label> 
                      <div class="flex-row">
-                        <select id="submit-session" class="flex-grow" required onchange="checkNewInput('submit-session', 'session-new')">
+                        <select id="submit-session" class="flex-grow" required onchange="handleSessionChange()">
                             <option value="" selected disabled>-- Select Session (e.g., Base Check) --</option>
                             <option value="__add_new__">+ Create New Session Type</option>
                         </select>
@@ -286,8 +214,11 @@
                  </div>
 
                  <div class="form-section"> 
-                     <label>Sub-Folder (Optional)</label> 
-                     <input type="text" id="submit-folder" placeholder="e.g. Captain Command Assessment, Cycle 1">
+                     <label>Location / Parent Folder</label> 
+                     <select id="submit-parent-folder">
+                         <option value="">(Root Directory)</option>
+                     </select>
+                     <input type="text" id="submit-new-folder" style="margin-top: 10px;" placeholder="Create New Subfolder Here (Optional)">
                  </div>
                  
                  <div class="form-section"> 
@@ -296,38 +227,28 @@
                  </div>
 
                  <div class="form-section"> 
-                     <label>SOP Version Tag</label> 
-                     <input type="text" id="submit-sop" placeholder="e.g. 2026 Q2 FCTM">
-                 </div>
-
-                 <div class="form-section"> 
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h3>Maneuver Blocks</h3> 
-                        <button type="button" class="button button-secondary" onclick="addManeuver()">+ Add Maneuver</button> 
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="margin: 0;">Maneuver Blocks</h3> 
+                        <button type="button" class="button button-secondary" onclick="addManeuver()" style="margin: 0;">+ Add Maneuver</button> 
                     </div>
-                    <div id="maneuvers-container"></div> 
+                    <div id="maneuvers-container" style="margin-top: 15px;"></div> 
                  </div>
 
-                 <!-- Rich Text Field -->
                  <div class="form-section"> 
                     <label>Miscellaneous Remarks & Briefing Notes</label> 
                     <div class="rich-text-container">
                         <div class="toolbar">
-                            <button type="button" onclick="formatText('misc-notes', 'bold')" title="Bold">B</button>
-                            <button type="button" onclick="formatText('misc-notes', 'italic')" title="Italic">I</button>
-                            <button type="button" onclick="formatText('misc-notes', 'underline')" title="Underline">U</button>
+                            <button type="button" onclick="formatText('misc-notes', 'bold')" title="Bold"><i class="fas fa-bold"></i></button>
+                            <button type="button" onclick="formatText('misc-notes', 'italic')" title="Italic"><i class="fas fa-italic"></i></button>
+                            <button type="button" onclick="formatText('misc-notes', 'underline')" title="Underline"><i class="fas fa-underline"></i></button>
                             <button type="button" onclick="formatText('misc-notes', 'insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
                         </div>
                         <div id="misc-notes" class="rich-input" contenteditable="true"></div>
                     </div>
                  </div>
 
-                 <div class="form-section" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px;">
-                    <label><input type="checkbox" required> I confirm no instructor names or specific dates revealing my slot are included.</label>
-                 </div>
-
                  <div class="form-section"> 
-                    <button type="submit" class="button">Publish Profile</button> 
+                    <button type="submit" class="button" style="width: 100%;">Publish Profile</button> 
                  </div>
              </form>
         </div>
@@ -335,17 +256,12 @@
         <!-- Profile Detail View -->
         <div id="profile-view" class="view">
              <div class="breadcrumb" id="profile-breadcrumb"></div>
-             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                 <h2 id="view-title" style="margin-bottom: 5px;">Profile Title</h2>
+             <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap: wrap; gap: 10px;">
+                 <h2 id="view-title" style="margin-bottom: 5px; width: 100%;">Profile Title</h2>
+                 <div style="margin-bottom: 20px;">
+                     <span class="badge" id="view-date"></span>
+                 </div>
                  <button type="button" class="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export EFB</button>
-             </div>
-             <div style="margin-bottom: 20px;">
-                 <span class="badge" id="view-sop"></span>
-                 <span class="badge" id="view-date"></span>
-             </div>
-
-             <div id="age-warning" class="warning-banner" style="display:none;">
-                 <strong><i class="fas fa-exclamation-triangle"></i> Notice:</strong> This profile is over 1 year old. Verify callouts and memory items against current SOPs.
              </div>
 
              <div id="view-maneuvers"></div>
@@ -353,11 +269,10 @@
              <h3 style="margin-top: 30px;">Briefing & Misc Notes</h3>
              <div class="rich-text-container" style="padding: 20px; background: rgba(0,0,0,0.1);" id="view-misc"></div>
 
-             <!-- Interaction Bar -->
              <div class="vote-bar">
                  <button class="button button-secondary" id="btn-upvote" onclick="submitMetric('upvote')"><i class="fas fa-thumbs-up"></i> Useful (<span id="count-up">0</span>)</button>
                  <button class="button button-secondary" id="btn-downvote" onclick="submitMetric('downvote')"><i class="fas fa-thumbs-down"></i> Needs Update (<span id="count-down">0</span>)</button>
-                 <div style="flex-grow:1;"></div>
+                 <div class="flex-grow"></div>
                  <button class="button" style="background: #e65100;" onclick="submitMetric('flag')"><i class="fas fa-flag"></i> Flag Nuisance</button>
              </div>
              
@@ -368,28 +283,23 @@
 
     <script>
         // --- CONFIGURATION ---
-        // IMPORTANT: REPLACE THIS WITH YOUR OWN APPS SCRIPT WEB APP URL
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
 
         // --- STATE ---
         let allProfiles = [];
-        let dataTree = {}; 
+        let dataTree = { profiles: [], children: {} }; 
         let isFetching = false;
-        let currentNavState = { fleet: null, session: null, folder: null };
+        let currentNavPath = []; 
         let viewingRowIndex = null;
 
         // --- INITIALIZATION ---
-        // Use DOMContentLoaded to ensure UI logic fires the second the HTML is parsed, skipping resource delays
         document.addEventListener('DOMContentLoaded', async () => {
             createStars();
-            initDarkMode();
-            // Fetch database asynchronously
             await fetchAllData();
-            // Once data arrives, overwrite the spinner with the generated menu
             renderMenu();
         });
 
-        // --- THEME & BG ---
+        // --- BACKGROUND ---
         function createStars() {
             const container = document.getElementById('stars-container');
             if (!container) return;
@@ -406,46 +316,27 @@
             }
         }
 
-        function initDarkMode() {
-            const darkModeToggle = document.getElementById('darkModeToggle');
-            if (darkModeToggle) {
-                if(localStorage.getItem('dayMode') === 'true') { 
-                    darkModeToggle.checked = true; 
-                    document.body.classList.add('day-mode'); 
-                }
-                darkModeToggle.addEventListener('change', () => {
-                    if (darkModeToggle.checked) { 
-                        document.body.classList.add('day-mode'); 
-                        localStorage.setItem('dayMode', 'true'); 
-                    } else { 
-                        document.body.classList.remove('day-mode'); 
-                        localStorage.setItem('dayMode', 'false'); 
-                    }
-                });
-            }
-        }
-
-        // --- DATA FETCHING & PARSING WITH ERROR HANDLING ---
+        // --- DATA FETCHING & TREE BUILDING ---
         async function fetchAllData() {
             if (isFetching) return;
             isFetching = true;
             try {
                 const res = await fetch(WEB_APP_URL);
-                const text = await res.text(); // Parse as text first to trap HTML block errors safely
+                const text = await res.text(); 
                 
                 let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (parseError) {
-                    console.error("Database returned invalid data. Usually indicates an Apps Script Permission Error:", text);
-                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed with "Who has access" set to "Anyone".</div>`;
-                    return; // Halt further processing
+                try { data = JSON.parse(text); } 
+                catch (parseError) {
+                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly.</div>`;
+                    return; 
                 }
                 
-                allProfiles = []; dataTree = {};
+                allProfiles = []; 
+                dataTree = { profiles: [], children: {} };
+
                 if(data.status === 'success' && data.values) {
                     data.values.forEach((row, index) => {
-                        if (parseInt(row[10]) >= 3) return; // Hide if flagged 3+ times
+                        if (parseInt(row[10]) >= 3) return; 
                         
                         const profile = {
                             rowIndex: index + 2, 
@@ -454,7 +345,6 @@
                             sessionType: row[2] || 'General',
                             subFolder: row[3] || '',
                             title: row[4] || 'Untitled Profile',
-                            sopVersion: row[5] || 'Unknown SOP',
                             maneuvers: parseJSON(row[6]),
                             miscNotes: row[7] || '',
                             upvotes: parseInt(row[8]) || 0,
@@ -463,17 +353,24 @@
                         };
                         allProfiles.push(profile);
 
-                        if(!dataTree[profile.fleet]) dataTree[profile.fleet] = {};
-                        if(!dataTree[profile.fleet][profile.sessionType]) dataTree[profile.fleet][profile.sessionType] = {};
-                        const folderKey = profile.subFolder || "_root";
-                        if(!dataTree[profile.fleet][profile.sessionType][folderKey]) dataTree[profile.fleet][profile.sessionType][folderKey] = [];
-                        
-                        dataTree[profile.fleet][profile.sessionType][folderKey].push(profile);
+                        // Build Unlimited Depth Tree
+                        let pathParts = [profile.fleet, profile.sessionType];
+                        if (profile.subFolder) {
+                            pathParts = pathParts.concat(profile.subFolder.split('/').map(s => s.trim()).filter(s => s));
+                        }
+
+                        let current = dataTree;
+                        pathParts.forEach(part => {
+                            if (!current.children[part]) {
+                                current.children[part] = { profiles: [], children: {} };
+                            }
+                            current = current.children[part];
+                        });
+                        current.profiles.push(profile);
                     });
                 }
             } catch(e) {
-                console.error("Network Error:", e);
-                document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Network Error.</strong><br>Could not reach the database. Check your connection or Web App URL.</div>`;
+                document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Network Error.</strong><br>Could not reach the database.</div>`;
             } finally {
                 isFetching = false;
             }
@@ -498,48 +395,38 @@
         }
 
         function navigateUp() {
-            if(currentNavState.folder) { currentNavState.folder = null; renderExplorer(); }
-            else if(currentNavState.session) { currentNavState.session = null; renderExplorer(); }
-            else { currentNavState.fleet = null; navigateTo('menu-view'); }
+            if(currentNavPath.length > 0) {
+                currentNavPath.pop();
+                if(currentNavPath.length === 0) navigateTo('menu-view');
+                else renderExplorer();
+            } else {
+                navigateTo('menu-view');
+            }
+        }
+
+        function openNode(nodeName) {
+            currentNavPath.push(nodeName);
+            renderExplorer();
+            if(currentNavPath.length === 1) navigateTo('explorer-view');
         }
 
         // --- RENDER VIEWS ---
         function renderMenu() {
             const grid = document.getElementById('fleet-grid');
-            // If the grid already has an error message, do not overwrite it.
             if(grid.innerHTML.includes("Connection Refused") || grid.innerHTML.includes("Network Error")) return;
             
             grid.innerHTML = '';
-            const fleets = Object.keys(dataTree);
+            const fleets = Object.keys(dataTree.children);
             if(fleets.length === 0) {
                 grid.innerHTML = "<p style='grid-column: 1/-1;'>Database initialized. No profiles found. Be the first to submit!</p>";
                 return;
             }
             
             fleets.sort().forEach(fleet => {
-                grid.innerHTML += `<div class="folder-card" onclick="openFleet('${fleet}')">
-                                      <i class="fas fa-plane"></i> ${fleet}
+                grid.innerHTML += `<div class="folder-card" onclick="openNode('${fleet}')">
+                                      <i class="fas fa-plane"></i> <span>${fleet}</span>
                                    </div>`;
             });
-        }
-
-        function openFleet(fleet) {
-            currentNavState.fleet = fleet;
-            currentNavState.session = null;
-            currentNavState.folder = null;
-            renderExplorer();
-            navigateTo('explorer-view');
-        }
-
-        function openSession(session) {
-            currentNavState.session = session;
-            currentNavState.folder = null;
-            renderExplorer();
-        }
-
-        function openFolder(folder) {
-            currentNavState.folder = folder;
-            renderExplorer();
         }
 
         function renderExplorer() {
@@ -551,54 +438,53 @@
             
             subGrid.innerHTML = ''; pList.innerHTML = ''; subSec.style.display = 'none';
 
-            let bcrumbHtml = `<span onclick="navigateUp()">Home</span>`;
-            if(currentNavState.fleet) bcrumbHtml += ` > <span onclick="currentNavState.session=null; currentNavState.folder=null; renderExplorer()">${currentNavState.fleet}</span>`;
-            if(currentNavState.session) bcrumbHtml += ` > <span onclick="currentNavState.folder=null; renderExplorer()">${currentNavState.session}</span>`;
-            if(currentNavState.folder) bcrumbHtml += ` > <span>${currentNavState.folder}</span>`;
+            let current = dataTree;
+            let bcrumbHtml = `<span onclick="currentNavPath=[]; navigateTo('menu-view');">Home</span>`;
+            
+            let tempPath = [];
+            currentNavPath.forEach((part, index) => {
+                tempPath.push(part);
+                const pathCopy = JSON.stringify(tempPath);
+                if (index === currentNavPath.length - 1) {
+                    bcrumbHtml += ` > <span>${part}</span>`;
+                } else {
+                    bcrumbHtml += ` > <span onclick='currentNavPath=${pathCopy}; renderExplorer();'>${part}</span>`;
+                }
+                current = current.children[part];
+            });
+            
             bc.innerHTML = bcrumbHtml;
+            title.innerHTML = currentNavPath[currentNavPath.length - 1];
 
-            if(currentNavState.fleet && !currentNavState.session) {
-                title.innerHTML = `${currentNavState.fleet} Sessions`;
+            // Render Folders
+            const folders = Object.keys(current.children);
+            if (folders.length > 0) {
                 subSec.style.display = 'block';
-                if(dataTree[currentNavState.fleet]) {
-                    Object.keys(dataTree[currentNavState.fleet]).sort().forEach(sess => {
-                        subGrid.innerHTML += `<div class="folder-card" onclick="openSession('${sess}')"><i class="fas fa-chalkboard-teacher"></i> ${sess}</div>`;
-                    });
-                }
+                folders.sort().forEach(folder => {
+                    let icon = 'fa-folder';
+                    if(currentNavPath.length === 0) icon = 'fa-plane';
+                    else if (currentNavPath.length === 1) icon = 'fa-chalkboard-teacher';
+                    
+                    subGrid.innerHTML += `<div class="folder-card" onclick="openNode('${folder}')"><i class="fas ${icon}"></i> <span>${folder}</span></div>`;
+                });
             }
-            else if (currentNavState.session && !currentNavState.folder) {
-                title.innerHTML = currentNavState.session;
-                if(dataTree[currentNavState.fleet] && dataTree[currentNavState.fleet][currentNavState.session]) {
-                    const folders = Object.keys(dataTree[currentNavState.fleet][currentNavState.session]);
-                    folders.forEach(folder => {
-                        if(folder !== "_root") {
-                            subSec.style.display = 'block';
-                            subGrid.innerHTML += `<div class="folder-card" onclick="openFolder('${folder}')"><i class="fas fa-folder"></i> ${folder}</div>`;
-                        }
-                    });
-                    if(dataTree[currentNavState.fleet][currentNavState.session]["_root"]) {
-                        renderProfileList(dataTree[currentNavState.fleet][currentNavState.session]["_root"], pList);
-                    }
-                }
-            }
-            else if (currentNavState.folder) {
-                title.innerHTML = currentNavState.folder;
-                if(dataTree[currentNavState.fleet] && dataTree[currentNavState.fleet][currentNavState.session]) {
-                    renderProfileList(dataTree[currentNavState.fleet][currentNavState.session][currentNavState.folder], pList);
-                }
+
+            // Render Profiles
+            if (current.profiles.length > 0) {
+                renderProfileList(current.profiles, pList);
+            } else if (folders.length === 0 && currentNavPath.length > 1) {
+                pList.innerHTML = "<p>No profiles or subfolders here yet.</p>";
             }
         }
 
         function renderProfileList(profilesArray, container) {
-            if(!profilesArray || profilesArray.length === 0) { container.innerHTML = "<p>No profiles here yet.</p>"; return; }
             profilesArray.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(p => {
                 const helpfulPct = (p.upvotes + p.downvotes) > 0 ? Math.round((p.upvotes / (p.upvotes + p.downvotes)) * 100) : 0;
-                let ratingHtml = helpfulPct > 0 ? `<small style="color:var(--accent);">${helpfulPct}% Useful</small>` : '';
+                let ratingHtml = helpfulPct > 0 ? `<small style="color:var(--accent); font-weight:bold;">${helpfulPct}% Useful</small>` : '';
                 
                 container.innerHTML += `<div class="profile-list-item" onclick="viewProfile(${p.rowIndex})">
-                                            <div>
+                                            <div style="flex-grow:1;">
                                                 <div style="font-weight:bold; font-size:1.1em; margin-bottom:5px;">${p.title}</div>
-                                                <small style="opacity:0.7;">SOP: ${p.sopVersion}</small>
                                             </div>
                                             <div>${ratingHtml}</div>
                                         </div>`;
@@ -610,17 +496,16 @@
             if(!p) return;
             viewingRowIndex = rowIndex;
             
-            document.getElementById('profile-breadcrumb').innerHTML = `${p.fleet} > ${p.sessionType} ` + (p.subFolder ? `> ${p.subFolder}` : '');
+            let pathDisplay = p.fleet + ' > ' + p.sessionType;
+            if(p.subFolder) pathDisplay += ' > ' + p.subFolder.split('/').map(s=>s.trim()).join(' > ');
+            
+            document.getElementById('profile-breadcrumb').innerHTML = pathDisplay;
             document.getElementById('view-title').textContent = p.title;
-            document.getElementById('view-sop').textContent = `SOP: ${p.sopVersion}`;
             
             let dateStr = "Unknown Date";
             if(p.timestamp) {
                 let d = isNaN(p.timestamp) ? new Date(p.timestamp) : new Date((p.timestamp - 25569) * 86400 * 1000);
                 dateStr = d.toLocaleDateString();
-                
-                const oneYearAgo = new Date(); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-                document.getElementById('age-warning').style.display = (d < oneYearAgo) ? 'block' : 'none';
             }
             document.getElementById('view-date').textContent = `Submitted: ${dateStr}`;
 
@@ -631,14 +516,13 @@
                     mContainer.innerHTML += `
                         <div class="maneuver-block">
                             <h4 style="margin-bottom:10px;">${i+1}. ${m.name}</h4>
-                            <p><strong>Targets/Callouts:</strong><br> ${m.callouts}</p>
-                            <p><strong>Pointers/Traps:</strong><br> ${m.pointers}</p>
+                            <p style="white-space: pre-wrap;"><strong>Targets/Callouts:</strong><br>${m.callouts}</p>
+                            <p style="white-space: pre-wrap;"><strong>Pointers/Traps:</strong><br>${m.pointers}</p>
                         </div>`;
                 });
             } else { mContainer.innerHTML = "<p>No specific maneuvers documented.</p>"; }
 
             document.getElementById('view-misc').innerHTML = p.miscNotes || 'None.';
-            
             document.getElementById('count-up').textContent = p.upvotes;
             document.getElementById('count-down').textContent = p.downvotes;
 
@@ -646,27 +530,65 @@
         }
 
         // --- SUBMIT FORM LOGIC ---
-        function checkNewInput(selectId, inputId) {
-            const sel = document.getElementById(selectId);
-            document.getElementById(inputId).style.display = sel.value === '__add_new__' ? 'block' : 'none';
+        function handleFleetChange() {
+            const fleetSel = document.getElementById('submit-fleet');
+            document.getElementById('fleet-new').style.display = fleetSel.value === '__add_new__' ? 'block' : 'none';
+            updateSessionDropdown();
+            updateFolderDropdown();
+        }
+
+        function handleSessionChange() {
+            const sessSel = document.getElementById('submit-session');
+            document.getElementById('session-new').style.display = sessSel.value === '__add_new__' ? 'block' : 'none';
+            updateFolderDropdown();
         }
 
         function populateFormDropdowns() {
             const fleetSel = document.getElementById('submit-fleet');
-            const sessSel = document.getElementById('submit-session');
-            
             fleetSel.innerHTML = '<option value="" selected disabled>-- Select Fleet --</option><option value="__add_new__">+ Create New Fleet</option>';
-            sessSel.innerHTML = '<option value="" selected disabled>-- Select Session --</option><option value="__add_new__">+ Create New Session Type</option>';
-
-            Object.keys(dataTree).sort().forEach(f => {
+            Object.keys(dataTree.children).sort().forEach(f => {
                 fleetSel.innerHTML += `<option value="${f}">${f}</option>`;
             });
+            
+            document.getElementById('submit-session').innerHTML = '<option value="" selected disabled>-- Select Session --</option><option value="__add_new__">+ Create New Session Type</option>';
+            document.getElementById('submit-parent-folder').innerHTML = '<option value="">(Root Directory)</option>';
+        }
 
-            let allSessions = new Set();
-            Object.values(dataTree).forEach(fleetObj => Object.keys(fleetObj).forEach(s => allSessions.add(s)));
-            Array.from(allSessions).sort().forEach(s => {
-                sessSel.innerHTML += `<option value="${s}">${s}</option>`;
-            });
+        function updateSessionDropdown() {
+            const fleet = document.getElementById('submit-fleet').value;
+            const sessSel = document.getElementById('submit-session');
+            sessSel.innerHTML = '<option value="" selected disabled>-- Select Session --</option><option value="__add_new__">+ Create New Session Type</option>';
+            if (fleet && fleet !== '__add_new__' && dataTree.children[fleet]) {
+                Object.keys(dataTree.children[fleet].children).sort().forEach(s => {
+                    sessSel.innerHTML += `<option value="${s}">${s}</option>`;
+                });
+            }
+        }
+
+        function updateFolderDropdown() {
+            const fleet = document.getElementById('submit-fleet').value;
+            const session = document.getElementById('submit-session').value;
+            const folderSel = document.getElementById('submit-parent-folder');
+            folderSel.innerHTML = '<option value="">(Root Directory)</option>';
+            
+            if (fleet && fleet !== '__add_new__' && session && session !== '__add_new__' && dataTree.children[fleet] && dataTree.children[fleet].children[session]) {
+                const sessionNode = dataTree.children[fleet].children[session];
+                
+                // Recursively find all existing paths
+                const paths = [];
+                function traverse(node, currentPath) {
+                    Object.keys(node.children).forEach(folderName => {
+                        const newPath = currentPath ? currentPath + ' / ' + folderName : folderName;
+                        paths.push(newPath);
+                        traverse(node.children[folderName], newPath);
+                    });
+                }
+                traverse(sessionNode, "");
+                
+                paths.sort().forEach(p => {
+                    folderSel.innerHTML += `<option value="${p}">${p}</option>`;
+                });
+            }
         }
 
         function addManeuver() {
@@ -694,13 +616,18 @@
             let session = document.getElementById('submit-session').value;
             if(session === '__add_new__') session = document.getElementById('session-new').value.trim();
 
+            let parentF = document.getElementById('submit-parent-folder').value;
+            let newF = document.getElementById('submit-new-folder').value.trim();
+            let finalSubFolder = parentF;
+            if (newF) finalSubFolder = parentF ? parentF + ' / ' + newF : newF;
+
             const formData = new URLSearchParams();
             formData.append('action', 'submit_profile');
             formData.append('fleet', fleet);
             formData.append('sessionType', session);
-            formData.append('subFolder', document.getElementById('submit-folder').value.trim());
+            formData.append('subFolder', finalSubFolder);
             formData.append('profileTitle', document.getElementById('submit-title').value.trim());
-            formData.append('sopVersion', document.getElementById('submit-sop').value.trim());
+            formData.append('sopVersion', ""); // Kept empty to maintain Apps Script structure compatibility
             formData.append('miscNotes', document.getElementById('misc-notes').innerHTML);
 
             const mList = [];
@@ -772,12 +699,14 @@
                 (p.maneuvers && p.maneuvers.some(m => m.name.toLowerCase().includes(term)))
             );
 
-            currentNavState = { fleet: null, session: null, folder: null };
+            currentNavPath = [];
             document.getElementById('explorer-breadcrumb').innerHTML = `<span onclick="navigateTo('menu-view')">Home</span> > Search Results for "${term}"`;
             document.getElementById('explorer-title').textContent = "Search Results";
             document.getElementById('subfolder-section').style.display = 'none';
             
-            renderProfileList(results, document.getElementById('profile-list'));
+            const pList = document.getElementById('profile-list');
+            pList.innerHTML = '';
+            renderProfileList(results, pList);
             navigateTo('explorer-view');
         }
     </script>
