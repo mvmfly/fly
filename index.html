@@ -332,7 +332,7 @@
                 if(searchTerm) renderSearchResults(searchTerm);
                 else renderExplorer();
             }
-            else if(viewId === 'submit-view') populateFormDropdowns();
+            // Removed populateFormDropdowns() from here so it doesn't overwrite triggerEdit() setup
             else if(viewId === 'profile-view') renderProfileData();
         }
 
@@ -568,10 +568,17 @@
             renderDynamicFolders();
             
             if (currentNavPath.length > 0) {
-                document.getElementById('submit-fleet').value = currentNavPath[0];
+                let fSelect = document.getElementById('submit-fleet');
+                let fOptions = Array.from(fSelect.options).map(o => o.value);
+                if(fOptions.includes(currentNavPath[0])) fSelect.value = currentNavPath[0];
+
                 handleFleetSessionChange();
+                
                 if (currentNavPath.length > 1) {
-                    document.getElementById('submit-session').value = currentNavPath[1];
+                    let sSelect = document.getElementById('submit-session');
+                    let sOptions = Array.from(sSelect.options).map(o => o.value);
+                    if(sOptions.includes(currentNavPath[1])) sSelect.value = currentNavPath[1];
+                    
                     handleFleetSessionChange();
                     
                     if (currentNavPath.length > 2) {
@@ -597,18 +604,28 @@
             
             populateFormDropdowns();
             
-            document.getElementById('submit-fleet').value = p.fleet;
-            if(!document.getElementById('submit-fleet').value) {
-                document.getElementById('submit-fleet').value = "__add_new__";
+            let fSelect = document.getElementById('submit-fleet');
+            let fOptions = Array.from(fSelect.options).map(o => o.value);
+            if(fOptions.includes(p.fleet)) {
+                fSelect.value = p.fleet;
+                document.getElementById('fleet-new').style.display = 'none';
+            } else {
+                fSelect.value = "__add_new__";
                 document.getElementById('fleet-new').value = p.fleet;
+                document.getElementById('fleet-new').style.display = 'block';
             }
             
             handleFleetSessionChange(); 
 
-            document.getElementById('submit-session').value = p.sessionType;
-            if(!document.getElementById('submit-session').value) {
-                document.getElementById('submit-session').value = "__add_new__";
+            let sSelect = document.getElementById('submit-session');
+            let sOptions = Array.from(sSelect.options).map(o => o.value);
+            if(sOptions.includes(p.sessionType)) {
+                sSelect.value = p.sessionType;
+                document.getElementById('session-new').style.display = 'none';
+            } else {
+                sSelect.value = "__add_new__";
                 document.getElementById('session-new').value = p.sessionType;
+                document.getElementById('session-new').style.display = 'block';
             }
             
             dynamicPathLevels = [];
