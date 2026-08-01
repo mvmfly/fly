@@ -118,12 +118,44 @@
             .vote-bar .flex-grow { display: none; }
         }
 
+        /* --- PDF EXPORT STYLES --- */
         @media print {
-            body { background: #121212 !important; color: #fff !important; } 
-            .bg-layer, .button, .vote-bar { display: none !important; }
-            .container { box-shadow: none; border: none; margin: 0; padding: 0; width: 100%; background: transparent; }
-            .maneuver-block { page-break-inside: avoid; border-left: 4px solid #fff; }
-            h2, h3, h4 { color: #fff !important; }
+            body { 
+                background: #fff !important; 
+                color: #000 !important; 
+            } 
+            .bg-layer, .button, .vote-bar, .header-controls { display: none !important; }
+            .container { 
+                box-shadow: none !important; 
+                border: none !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                width: 100% !important; 
+                background: #fff !important; 
+            }
+            .maneuver-block { 
+                page-break-inside: avoid; 
+                border-left: 3px solid #000 !important; 
+                border-radius: 0 !important;
+                background: #fff !important; 
+                color: #000 !important;
+                padding: 10px 15px !important;
+                margin-bottom: 10px !important;
+                border-bottom: 1px solid #ccc !important;
+                border-top: 1px solid #ccc !important;
+                border-right: 1px solid #ccc !important;
+            }
+            h2, h3, h4 { color: #000 !important; margin-top: 10px !important; margin-bottom: 5px !important; }
+            p { color: #000 !important; margin-top: 5px !important; margin-bottom: 5px !important; }
+            strong { color: #000 !important; }
+            .badge { background: #f0f0f0 !important; color: #000 !important; border: 1px solid #000 !important; }
+            .rich-text-container { 
+                background: #fff !important; 
+                border: none !important; 
+                padding: 0 !important; 
+                color: #000 !important; 
+            }
+            #view-misc { padding: 0 !important; }
         }
     </style>
 </head>
@@ -137,7 +169,7 @@
         <div id="menu-view" class="view active" style="display: block; opacity: 1;">
              <h2><i class="fas fa-plane"></i> Fleet Selection</h2>
              <div class="flex-row" style="margin-bottom: 20px;">
-                 <input type="text" id="search-box" class="flex-grow" placeholder="Search profiles, maneuvers...">
+                 <input type="text" id="search-box" class="flex-grow" placeholder="Search profiles, manoeuvres...">
                  <button class="button" onclick="performSearch()" style="width: auto;"><i class="fas fa-search"></i></button>
              </div>
              <div id="fleet-grid" class="folder-grid">
@@ -210,10 +242,13 @@
 
                  <div class="form-section"> 
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
-                        <h3 style="margin: 0;">Maneuver Blocks</h3> 
-                        <button type="button" class="button button-secondary" onclick="addManeuver()" style="margin: 0;">+ Add Maneuver</button> 
+                        <h3 style="margin: 0;">Manoeuvre/Condition Blocks</h3> 
+                        <button type="button" class="button button-secondary" onclick="addManeuver()" style="margin: 0;">+ Add Manoeuvre/Condition</button> 
                     </div>
+                    
                     <div id="maneuvers-container" style="margin-top: 15px;"></div> 
+                    
+                    <button type="button" class="button button-secondary" onclick="addManeuver()" style="margin-top: 10px; width: 100%;">+ Add Manoeuvre/Condition</button>
                  </div>
 
                  <div class="form-section"> 
@@ -244,7 +279,7 @@
                  </div>
                  <div style="display: flex; gap: 10px;">
                      <button type="button" class="button button-secondary" onclick="triggerEdit()"><i class="fas fa-edit"></i> Edit</button>
-                     <button type="button" class="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export EFB</button>
+                     <button type="button" class="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export PDF</button>
                  </div>
              </div>
 
@@ -274,8 +309,8 @@
         let currentNavPath = []; 
         let viewingRowIndex = null;
         
-        let dynamicPathLevels = []; // Array of objects storing the state of each infinite folder level
-        let editingRowIndex = null; // Stores row ID if editing an existing profile
+        let dynamicPathLevels = []; 
+        let editingRowIndex = null; 
 
         document.addEventListener('DOMContentLoaded', async () => {
             createStars();
@@ -369,7 +404,9 @@
                 active.style.display = 'block';
                 setTimeout(() => active.classList.add('active'), 10);
             }
+
             if(viewId === 'menu-view') renderMenu();
+            if(viewId === 'submit-view') populateFormDropdowns();
         }
 
         function navigateUp() {
@@ -472,7 +509,7 @@
             viewingRowIndex = rowIndex;
             
             let pathDisplay = p.fleet + ' > ' + p.sessionType;
-            if(p.subFolder) pathDisplay += ' > ' + p.subFolder;
+            if(p.subFolder) pathDisplay += ' > ' + p.subFolder.split('/').map(s=>s.trim()).join(' > ');
             
             document.getElementById('profile-breadcrumb').innerHTML = pathDisplay;
             document.getElementById('view-title').textContent = p.title;
@@ -488,23 +525,28 @@
             mContainer.innerHTML = '';
             if(p.maneuvers && p.maneuvers.length > 0) {
                 p.maneuvers.forEach((m, i) => {
+                    let ant = m.callouts.trim();
+                    let ptr = m.pointers.trim();
+                    
+                    let antHtml = ant ? `<p style="white-space: pre-wrap; margin-top: 5px; margin-bottom: 5px;"><strong>Anticipate:</strong><br>${ant}</p>` : '';
+                    let ptrHtml = ptr ? `<p style="white-space: pre-wrap; margin-top: 5px; margin-bottom: 5px;"><strong>Pointers/Traps:</strong><br>${ptr}</p>` : '';
+                    
                     mContainer.innerHTML += `
                         <div class="maneuver-block">
-                            <h4 style="margin-bottom:10px;">${i+1}. ${m.name}</h4>
-                            <p style="white-space: pre-wrap;"><strong>Targets/Callouts:</strong><br>${m.callouts}</p>
-                            <p style="white-space: pre-wrap;"><strong>Pointers/Traps:</strong><br>${m.pointers}</p>
+                            <h4 style="margin-bottom:5px; margin-top:0px;">${i+1}. ${m.name}</h4>
+                            ${antHtml}
+                            ${ptrHtml}
                         </div>`;
                 });
             }
 
-            document.getElementById('view-misc').innerHTML = p.miscNotes || 'None.';
+            document.getElementById('view-misc').innerHTML = p.miscNotes || '';
             document.getElementById('count-up').textContent = p.upvotes;
             document.getElementById('count-down').textContent = p.downvotes;
 
             navigateTo('profile-view');
         }
 
-        // --- SUBMIT / EDIT FORM LOGIC ---
         function openSubmitForm() {
             editingRowIndex = null;
             document.getElementById('entry-form').reset();
@@ -517,7 +559,6 @@
             dynamicPathLevels = [];
             renderDynamicFolders();
             
-            // Pre-select if we are inside a path
             if (currentNavPath.length > 0) {
                 document.getElementById('submit-fleet').value = currentNavPath[0];
                 handleFleetSessionChange();
@@ -525,7 +566,6 @@
                     document.getElementById('submit-session').value = currentNavPath[1];
                     handleFleetSessionChange();
                     
-                    // Populate infinite folders if we navigated deep
                     if (currentNavPath.length > 2) {
                         for(let i=2; i<currentNavPath.length; i++){
                             dynamicPathLevels.push({ selectedValue: currentNavPath[i], newValue: '' });
@@ -549,14 +589,13 @@
             
             populateFormDropdowns();
             
-            // Set Fleet and Session
             document.getElementById('submit-fleet').value = p.fleet;
-            if(!document.getElementById('submit-fleet').value) { // If custom fleet that wasn't loaded properly
+            if(!document.getElementById('submit-fleet').value) {
                 document.getElementById('submit-fleet').value = "__add_new__";
                 document.getElementById('fleet-new').value = p.fleet;
             }
             
-            handleFleetSessionChange(); // Re-render available sessions based on fleet
+            handleFleetSessionChange(); 
 
             document.getElementById('submit-session').value = p.sessionType;
             if(!document.getElementById('submit-session').value) {
@@ -564,7 +603,6 @@
                 document.getElementById('session-new').value = p.sessionType;
             }
             
-            // Set Subfolders
             dynamicPathLevels = [];
             if (p.subFolder) {
                 const parts = p.subFolder.split(' / ');
@@ -574,11 +612,9 @@
             }
             renderDynamicFolders();
 
-            // Set Title & Notes
             document.getElementById('submit-title').value = p.title;
             document.getElementById('misc-notes').innerHTML = p.miscNotes;
 
-            // Set Maneuvers
             const mContainer = document.getElementById('maneuvers-container');
             mContainer.innerHTML = '';
             p.maneuvers.forEach(m => {
@@ -586,9 +622,9 @@
                 div.className = 'maneuver-block';
                 div.innerHTML = `
                     <button type="button" class="button-delete" onclick="this.parentElement.remove()" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
-                    <input type="text" placeholder="Maneuver Name (e.g. EFATO)" class="m-name" value="${m.name}" required style="margin-bottom:10px; font-weight:bold;">
-                    <textarea placeholder="Power settings, pitch targets, callouts..." class="m-callouts" rows="2" style="margin-bottom:10px;">${m.callouts}</textarea>
-                    <textarea placeholder="Learning pointers, common traps..." class="m-pointers" rows="2">${m.pointers}</textarea>
+                    <input type="text" placeholder="" class="m-name" value="${m.name}" required style="margin-bottom:10px; font-weight:bold;">
+                    <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;">${m.callouts}</textarea>
+                    <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2">${m.pointers}</textarea>
                 `;
                 mContainer.appendChild(div);
             });
@@ -617,11 +653,9 @@
             const sessSel = document.getElementById('submit-session');
             document.getElementById('session-new').style.display = sessSel.value === '__add_new__' ? 'block' : 'none';
             
-            // Validate paths dynamically against new trees
             renderDynamicFolders();
         }
 
-        // --- INFINITE SUBFOLDER LOGIC ---
         function getTreeForCurrentFleetAndSession() {
             let fleet = document.getElementById('submit-fleet').value;
             if(fleet === '__add_new__' || !fleet) return null; 
@@ -650,7 +684,6 @@
                     });
                 }
                 
-                // If editing and the folder exists in data but not strictly in the dropdown, add it to options
                 if (levelState.selectedValue && levelState.selectedValue !== '__add_new__' && currentTree && !currentTree.children[levelState.selectedValue]) {
                     optionsHtml += `<option value="${levelState.selectedValue}" selected>${levelState.selectedValue}</option>`;
                 }
@@ -671,7 +704,6 @@
                 `;
                 container.insertAdjacentHTML('beforeend', levelHtml);
                 
-                // Advance pointer deeper into the tree if selecting an existing node
                 if (levelState.selectedValue && levelState.selectedValue !== '__add_new__') {
                     currentTree = currentTree ? currentTree.children[levelState.selectedValue] : null;
                 } else {
@@ -684,7 +716,6 @@
 
         function handleFolderSelectChange(index, value) {
             dynamicPathLevels[index].selectedValue = value;
-            // Truncate any levels beneath this one because the parent path changed
             dynamicPathLevels = dynamicPathLevels.slice(0, index + 1);
             renderDynamicFolders();
         }
@@ -706,9 +737,9 @@
             div.className = 'maneuver-block';
             div.innerHTML = `
                 <button type="button" class="button-delete" onclick="this.parentElement.remove()" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
-                <input type="text" placeholder="Maneuver Name (e.g. EFATO)" class="m-name" required style="margin-bottom:10px; font-weight:bold;">
-                <textarea placeholder="Power settings, pitch targets, callouts..." class="m-callouts" rows="2" style="margin-bottom:10px;"></textarea>
-                <textarea placeholder="Learning pointers, common traps..." class="m-pointers" rows="2"></textarea>
+                <input type="text" placeholder="" class="m-name" required style="margin-bottom:10px; font-weight:bold;">
+                <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;"></textarea>
+                <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2"></textarea>
             `;
             document.getElementById('maneuvers-container').appendChild(div);
         }
@@ -727,7 +758,6 @@
             let session = document.getElementById('submit-session').value;
             if(session === '__add_new__') session = document.getElementById('session-new').value.trim();
 
-            // Compile the dynamic folder path
             let finalPathArray = [];
             for(let i=0; i<dynamicPathLevels.length; i++) {
                 let val = dynamicPathLevels[i].selectedValue;
@@ -766,7 +796,7 @@
                     document.getElementById('misc-notes').innerHTML = '';
                     await fetchAllData();
                     if(editingRowIndex) {
-                        viewProfile(editingRowIndex); // Return directly to the profile view if editing
+                        viewProfile(editingRowIndex); 
                     } else {
                         navigateTo('menu-view');
                     }
