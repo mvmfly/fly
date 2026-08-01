@@ -6,7 +6,6 @@
     <title>Simulator Training Database</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* --- CSS VARIABLES (NIGHT MODE ONLY) --- */
         :root {
             --bg-grad-start: #05070a;
             --bg-grad-mid: #0b1021;
@@ -23,7 +22,6 @@
             --input-border: rgba(0, 229, 255, 0.2);
         }
 
-        /* --- GLOBAL STYLES --- */
         * { box-sizing: border-box; }
         html, body {
             margin: 0; padding: 0;
@@ -34,14 +32,12 @@
             background-color: var(--bg-grad-start); 
         }
 
-        /* --- BACKGROUND LAYERS --- */
         .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         #bg-gradient { z-index: -10; background: radial-gradient(circle at center, var(--bg-grad-mid) 0%, var(--bg-grad-start) 100%); }
         #space-elements { z-index: -5; }
         .star { position: absolute; background: white; border-radius: 50%; animation: twinkle linear infinite; opacity: 0; }
         @keyframes twinkle { 0% { opacity: 0; } 50% { opacity: 0.8; } 100% { opacity: 0; } }
 
-        /* --- LAYOUT & CONTAINER --- */
         .container {
             width: 95%; max-width: 1000px;
             margin: 40px auto 40px auto; padding: 30px;
@@ -53,7 +49,6 @@
         h2, h3, h4 { color: var(--text-heading); margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
         h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 25px; font-weight: 700; }
 
-        /* --- BUTTONS --- */
         .button {
             padding: 12px 24px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px;
             background: var(--accent); color: var(--btn-text); font-weight: bold;
@@ -64,9 +59,9 @@
         .button-secondary, .button-back { background: #37474f; color: #eceff1; }
         .button-delete { background: #c62828; color: white; padding: 8px 12px; border-radius: 4px; border: none; cursor: pointer; }
 
-        /* --- FORMS & INPUTS --- */
         .form-section { margin-bottom: 25px; width: 100%; }
         label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-heading); }
+        .sub-label { font-size: 0.85em; opacity: 0.8; margin-top: 10px; margin-bottom: 5px; display: block; }
         
         input[type="text"], select, textarea {
             width: 100%; padding: 12px; border-radius: 4px; border: 1px solid var(--input-border);
@@ -79,17 +74,14 @@
         .flex-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
         .flex-grow { flex-grow: 1; min-width: 200px; }
 
-        /* --- RICH TEXT TOOLBAR --- */
         .rich-text-container { border: 1px solid var(--input-border); border-radius: 4px; overflow: hidden; background: var(--input-bg); }
         .toolbar { padding: 5px 10px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--input-border); display: flex; gap: 5px; flex-wrap: wrap; }
         .toolbar button { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 8px; border-radius: 4px; font-weight: bold; }
         .toolbar button:hover { background: rgba(0,229,255,0.2); color: var(--accent); }
         .rich-input { width: 100%; min-height: 120px; padding: 12px; background: transparent; color: var(--text-main); border: none; outline: none; resize: vertical; overflow-y: auto; }
 
-        /* --- MANEUVER BLOCKS --- */
         .maneuver-block { background: rgba(0,0,0,0.2); padding: 15px; margin-bottom: 15px; border-left: 4px solid var(--accent); border-radius: 4px; position: relative; }
         
-        /* --- FOLDERS & DATA LISTS --- */
         .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .folder-card { 
             background: var(--card-bg); padding: 20px; border-radius: 6px; border: 1px solid var(--glass-border); 
@@ -106,11 +98,9 @@
         }
         .profile-list-item:hover { border-color: var(--accent); }
 
-        /* --- PROFILE VIEW & BADGES --- */
         .badge { display: inline-block; padding: 6px 10px; font-size: 0.85em; border-radius: 4px; background: #37474f; margin-right: 5px; margin-bottom: 5px;}
         .vote-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--glass-border); }
 
-        /* --- VIEWS & NAVIGATION --- */
         .view { display: none; opacity: 0; transition: opacity 0.4s ease; }
         .view.active { display: block; opacity: 1; }
         
@@ -118,7 +108,6 @@
         .breadcrumb span { cursor: pointer; color: var(--accent); }
         .breadcrumb span:hover { text-decoration: underline; }
 
-        /* --- MOBILE & IPAD RESPONSIVENESS --- */
         @media (max-width: 768px) {
             .container { width: 100%; margin: 20px auto; padding: 15px; border: none; border-radius: 0; }
             .folder-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
@@ -128,7 +117,6 @@
             .vote-bar .flex-grow { display: none; }
         }
 
-        /* --- PRINT STYLES FOR EFB --- */
         @media print {
             body { background: #121212 !important; color: #fff !important; } 
             .bg-layer, .button, .vote-bar { display: none !important; }
@@ -140,14 +128,11 @@
 </head>
 <body>
 
-    <!-- Background Layers -->
     <div id="bg-gradient" class="bg-layer"></div>
     <div id="space-elements" class="bg-layer"><div id="stars-container"></div></div>
 
-    <!-- Main App Container -->
     <div class="container" id="main-container">
         
-        <!-- Menu View (Fleets) -->
         <div id="menu-view" class="view active" style="display: block; opacity: 1;">
              <h2><i class="fas fa-plane"></i> Fleet Selection</h2>
              <div class="flex-row" style="margin-bottom: 20px;">
@@ -164,7 +149,6 @@
              <button class="button button-secondary" style="width: 100%;" onclick="navigateTo('submit-view')"><i class="fas fa-file-signature"></i> Submit New Profile</button>
         </div>
 
-        <!-- Explorer View (Session Types & Folders) -->
         <div id="explorer-view" class="view">
              <div class="breadcrumb" id="explorer-breadcrumb"></div>
              <h2 id="explorer-title">Explorer</h2>
@@ -183,7 +167,6 @@
              </div>
         </div>
 
-        <!-- Submit View -->
         <div id="submit-view" class="view">
              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <h2 style="margin: 0;">Submit Sim Profile</h2>
@@ -214,11 +197,13 @@
                  </div>
 
                  <div class="form-section"> 
-                     <label>Location / Parent Folder</label> 
+                     <label>Directory Assignment</label> 
+                     <span class="sub-label">Select Parent Folder</span>
                      <select id="submit-parent-folder">
-                         <option value="">(Root Directory)</option>
+                         <option value="">-- Root Directory --</option>
                      </select>
-                     <input type="text" id="submit-new-folder" style="margin-top: 10px;" placeholder="Create New Subfolder Here (Optional)">
+                     <span class="sub-label">Create New Subfolder inside selected location (Optional)</span>
+                     <input type="text" id="submit-new-folder" placeholder="e.g. Day 1, EBT Cycle 2">
                  </div>
                  
                  <div class="form-section"> 
@@ -238,9 +223,9 @@
                     <label>Miscellaneous Remarks & Briefing Notes</label> 
                     <div class="rich-text-container">
                         <div class="toolbar">
-                            <button type="button" onclick="formatText('misc-notes', 'bold')" title="Bold"><i class="fas fa-bold"></i></button>
-                            <button type="button" onclick="formatText('misc-notes', 'italic')" title="Italic"><i class="fas fa-italic"></i></button>
-                            <button type="button" onclick="formatText('misc-notes', 'underline')" title="Underline"><i class="fas fa-underline"></i></button>
+                            <button type="button" onclick="formatText('misc-notes', 'bold')"><i class="fas fa-bold"></i></button>
+                            <button type="button" onclick="formatText('misc-notes', 'italic')"><i class="fas fa-italic"></i></button>
+                            <button type="button" onclick="formatText('misc-notes', 'underline')"><i class="fas fa-underline"></i></button>
                             <button type="button" onclick="formatText('misc-notes', 'insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
                         </div>
                         <div id="misc-notes" class="rich-input" contenteditable="true"></div>
@@ -253,7 +238,6 @@
              </form>
         </div>
 
-        <!-- Profile Detail View -->
         <div id="profile-view" class="view">
              <div class="breadcrumb" id="profile-breadcrumb"></div>
              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap: wrap; gap: 10px;">
@@ -282,24 +266,20 @@
     </div> 
 
     <script>
-        // --- CONFIGURATION ---
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
 
-        // --- STATE ---
         let allProfiles = [];
         let dataTree = { profiles: [], children: {} }; 
         let isFetching = false;
         let currentNavPath = []; 
         let viewingRowIndex = null;
 
-        // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', async () => {
             createStars();
             await fetchAllData();
             renderMenu();
         });
 
-        // --- BACKGROUND ---
         function createStars() {
             const container = document.getElementById('stars-container');
             if (!container) return;
@@ -316,7 +296,6 @@
             }
         }
 
-        // --- DATA FETCHING & TREE BUILDING ---
         async function fetchAllData() {
             if (isFetching) return;
             isFetching = true;
@@ -353,7 +332,6 @@
                         };
                         allProfiles.push(profile);
 
-                        // Build Unlimited Depth Tree
                         let pathParts = [profile.fleet, profile.sessionType];
                         if (profile.subFolder) {
                             pathParts = pathParts.concat(profile.subFolder.split('/').map(s => s.trim()).filter(s => s));
@@ -378,7 +356,6 @@
 
         function parseJSON(str) { try { return JSON.parse(str); } catch(e) { return []; } }
 
-        // --- NAVIGATION ---
         function navigateTo(viewId) {
             document.querySelectorAll('.view').forEach(v => {
                 v.classList.remove('active');
@@ -410,7 +387,6 @@
             if(currentNavPath.length === 1) navigateTo('explorer-view');
         }
 
-        // --- RENDER VIEWS ---
         function renderMenu() {
             const grid = document.getElementById('fleet-grid');
             if(grid.innerHTML.includes("Connection Refused") || grid.innerHTML.includes("Network Error")) return;
@@ -456,7 +432,6 @@
             bc.innerHTML = bcrumbHtml;
             title.innerHTML = currentNavPath[currentNavPath.length - 1];
 
-            // Render Folders
             const folders = Object.keys(current.children);
             if (folders.length > 0) {
                 subSec.style.display = 'block';
@@ -469,7 +444,6 @@
                 });
             }
 
-            // Render Profiles
             if (current.profiles.length > 0) {
                 renderProfileList(current.profiles, pList);
             } else if (folders.length === 0 && currentNavPath.length > 1) {
@@ -520,7 +494,7 @@
                             <p style="white-space: pre-wrap;"><strong>Pointers/Traps:</strong><br>${m.pointers}</p>
                         </div>`;
                 });
-            } else { mContainer.innerHTML = "<p>No specific maneuvers documented.</p>"; }
+            }
 
             document.getElementById('view-misc').innerHTML = p.miscNotes || 'None.';
             document.getElementById('count-up').textContent = p.upvotes;
@@ -529,7 +503,6 @@
             navigateTo('profile-view');
         }
 
-        // --- SUBMIT FORM LOGIC ---
         function handleFleetChange() {
             const fleetSel = document.getElementById('submit-fleet');
             document.getElementById('fleet-new').style.display = fleetSel.value === '__add_new__' ? 'block' : 'none';
@@ -551,7 +524,7 @@
             });
             
             document.getElementById('submit-session').innerHTML = '<option value="" selected disabled>-- Select Session --</option><option value="__add_new__">+ Create New Session Type</option>';
-            document.getElementById('submit-parent-folder').innerHTML = '<option value="">(Root Directory)</option>';
+            document.getElementById('submit-parent-folder').innerHTML = '<option value="">-- Root Directory --</option>';
         }
 
         function updateSessionDropdown() {
@@ -569,12 +542,11 @@
             const fleet = document.getElementById('submit-fleet').value;
             const session = document.getElementById('submit-session').value;
             const folderSel = document.getElementById('submit-parent-folder');
-            folderSel.innerHTML = '<option value="">(Root Directory)</option>';
+            folderSel.innerHTML = '<option value="">-- Root Directory --</option>';
             
             if (fleet && fleet !== '__add_new__' && session && session !== '__add_new__' && dataTree.children[fleet] && dataTree.children[fleet].children[session]) {
                 const sessionNode = dataTree.children[fleet].children[session];
                 
-                // Recursively find all existing paths
                 const paths = [];
                 function traverse(node, currentPath) {
                     Object.keys(node.children).forEach(folderName => {
@@ -627,7 +599,7 @@
             formData.append('sessionType', session);
             formData.append('subFolder', finalSubFolder);
             formData.append('profileTitle', document.getElementById('submit-title').value.trim());
-            formData.append('sopVersion', ""); // Kept empty to maintain Apps Script structure compatibility
+            formData.append('sopVersion', ""); 
             formData.append('miscNotes', document.getElementById('misc-notes').innerHTML);
 
             const mList = [];
@@ -644,18 +616,19 @@
                 const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
                 const res = await response.json();
                 if(res.status === 'success') {
-                    alert("Profile Published!");
                     this.reset();
                     document.getElementById('maneuvers-container').innerHTML = '';
                     document.getElementById('misc-notes').innerHTML = '';
                     await fetchAllData();
                     navigateTo('menu-view');
                 } else throw new Error(res.message);
-            } catch(error) { alert("Submission failed: " + error.message); } 
-            finally { btn.disabled = false; btn.textContent = "Publish Profile"; }
+            } catch(error) { 
+                console.error(error); 
+            } finally { 
+                btn.disabled = false; btn.textContent = "Publish Profile"; 
+            }
         });
 
-        // --- VOTING & FLAGGING ---
         async function submitMetric(metricType) {
             if(!viewingRowIndex) return;
             const btn = document.getElementById(`btn-${metricType}`) || document.activeElement;
@@ -672,8 +645,7 @@
                 const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
                 const res = await response.json();
                 if(res.status === 'success') {
-                    if(metricType === 'flag') alert("Post flagged. Admins will review.");
-                    else {
+                    if(metricType !== 'flag') {
                         const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
                         if(span) span.textContent = res.newValue;
                     }
@@ -684,11 +656,13 @@
                         if(metricType==='flag') p.flags = res.newValue;
                     }
                 }
-            } catch(e) { alert("Action failed."); }
-            finally { btn.innerHTML = originalText; btn.disabled = false; }
+            } catch(e) { 
+                console.error(e); 
+            } finally { 
+                btn.innerHTML = originalText; btn.disabled = false; 
+            }
         }
 
-        // --- SEARCH ---
         function performSearch() {
             const term = document.getElementById('search-box').value.toLowerCase().trim();
             if(!term) return;
