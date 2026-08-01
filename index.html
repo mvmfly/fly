@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulator Training Database</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* --- CSS VARIABLES & THEMES --- */
+        :root {
+            /* SCI-FI THEME (Night) */
+            --bg-grad-start-night: #05070a;
+            --bg-grad-mid-night: #0b1021;
+            --bg-grad-end-night: #05070a;
+            --glass-bg-night: rgba(10, 15, 30, 0.75);
+            --glass-border-night: rgba(0, 229, 255, 0.15); 
+            --text-main-night: #cdd6f4;
+            --text-heading-night: #00e5ff; 
+            --accent-night: #00bcd4; 
+            --card-bg-night: rgba(0, 0, 0, 0.5);
+            --card-shadow-night: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+            --btn-text-night: #000;
+            --input-bg-night: rgba(255, 255, 255, 0.05);
+            --input-border-night: rgba(0, 229, 255, 0.2);
+            
+            /* SOPHISTICATED DAY THEME */
+            --bg-grad-start-day: #e0eafc;
+            --bg-grad-end-day: #cfdef3; 
+            --glass-bg-day: rgba(255, 255, 255, 0.95);
+            --glass-border-day: rgba(44, 62, 80, 0.1);
+            --text-main-day: #34495e;
+            --text-heading-day: #2c3e50; 
+            --accent-day: #2c3e50; 
+            --card-bg-day: #ffffff;
+            --card-shadow-day: 0 4px 15px rgba(0, 0, 0, 0.05);
+            --btn-text-day: #ffffff;
+            --input-bg-day: #f8f9fa;
+            --input-border-day: #b0bec5;
+
+            /* Active Variables */
+            --bg-grad-start: var(--bg-grad-start-night);
+            --bg-grad-end: var(--bg-grad-end-night);
+            --glass-bg: var(--glass-bg-night);
+            --glass-border: var(--glass-border-night);
+            --text-main: var(--text-main-night);
+            --text-heading: var(--text-heading-night);
+            --accent: var(--accent-night);
+            --card-bg: var(--card-bg-night);
+            --card-shadow: var(--card-shadow-night);
+            --input-bg: var(--input-bg-night);
+            --input-border: var(--input-border-night);
+            --btn-text: var(--btn-text-night);
+            --planet-opacity: 0.6;
+        }
+
+        body.day-mode {
+            --bg-grad-start: var(--bg-grad-start-day);
+            --bg-grad-end: var(--bg-grad-end-day);
+            --glass-bg: var(--glass-bg-day);
+            --glass-border: var(--glass-border-day);
+            --text-main: var(--text-main-day);
+            --text-heading: var(--text-heading-day);
+            --accent: var(--accent-day);
+            --card-bg: var(--card-bg-day);
+            --card-shadow: var(--card-shadow-day);
+            --input-bg: var(--input-bg-day);
+            --input-border: var(--input-border-day);
+            --btn-text: var(--btn-text-day);
+            --planet-opacity: 0; 
+        }
+
+        /* --- GLOBAL STYLES --- */
+        html, body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            width: 100%; min-height: 100vh;
+            color: var(--text-main);
+            overflow-x: hidden;
+            background-color: #05070a; 
+            transition: all 0.5s ease;
+        }
+
+        /* --- BACKGROUND LAYERS --- */
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #bg-gradient { z-index: -10; background: radial-gradient(circle at center, var(--bg-grad-mid-night, #0b1021) 0%, var(--bg-grad-start) 100%); transition: background 0.5s ease; }
+        body.day-mode #bg-gradient { background: linear-gradient(135deg, var(--bg-grad-start-day), var(--bg-grad-end-day)); }
+        #space-elements { z-index: -5; transition: opacity 0.5s ease; }
+        
+        .star { position: absolute; background: white; border-radius: 50%; animation: twinkle linear infinite; opacity: 0; }
+        @keyframes twinkle { 0% { opacity: 0; } 50% { opacity: 0.8; } 100% { opacity: 0; } }
+
+        /* --- LAYOUT & CONTAINER --- */
+        .container {
+            width: 90%; max-width: 1000px;
+            margin: 80px auto 40px auto; padding: 30px;
+            background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 2px; border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow); clip-path: polygon(0 0, 100% 0, 100% 98%, 98% 100%, 0 100%); 
+            transition: all 0.3s ease; position: relative; z-index: 1;
+        }
+        body.day-mode .container { border-radius: 12px; clip-path: none; border: 1px solid rgba(0,0,0,0.05); }
+
+        .header-controls { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; align-items: center; gap: 10px; }
+        
+        h2, h3, h4 { color: var(--text-heading); margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
+        h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 25px; font-weight: 700; }
+        body.day-mode h2, body.day-mode h3 { text-transform: none; letter-spacing: 0.5px; }
+
+        /* --- BUTTONS --- */
+        .button {
+            padding: 12px 24px; font-size: 15px; cursor: pointer; border: none; border-radius: 2px;
+            background: var(--accent); color: var(--btn-text); font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.15); transition: all 0.2s; margin: 5px; text-transform: uppercase; box-sizing: border-box;
+        }
+        body.day-mode .button { border-radius: 6px; box-shadow: none; text-transform: none; }
+        .button:hover { filter: brightness(1.2); box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); }
+        body.day-mode .button:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); filter: brightness(1.1); }
+        .button-secondary, .button-back { background: #37474f; color: #eceff1; }
+        body.day-mode .button-secondary, body.day-mode .button-back { background: #78909c; color: #fff; }
+        .button-delete { background: #c62828; color: white; padding: 8px; border-radius: 4px; border: none; cursor: pointer; }
+
+        /* --- FORMS & INPUTS --- */
+        .form-section { margin-bottom: 25px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-heading); }
+        
+        input[type="text"], select, textarea {
+            width: 100%; padding: 12px; border-radius: 2px; border: 1px solid var(--input-border);
+            background: var(--input-bg); color: var(--text-main); font-size: 15px; box-sizing: border-box;
+            transition: all 0.3s; font-family: 'Consolas', monospace; 
+        }
+        body.day-mode input[type="text"], body.day-mode select, body.day-mode textarea { 
+            font-family: 'Segoe UI', sans-serif; border-radius: 6px; background: #fff; color: #333;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px var(--accent); background: rgba(0, 229, 255, 0.05); }
+        body.day-mode input:focus, body.day-mode textarea:focus { background: #fff; box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1); }
+        select option { background-color: #0b1021; color: #e0e0e0; }
+        body.day-mode select option { background-color: #ffffff; color: #2c3e50; }
+
+        .flex-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .flex-grow { flex-grow: 1; }
+
+        /* --- RICH TEXT TOOLBAR --- */
+        .rich-text-container { border: 1px solid var(--input-border); border-radius: 2px; overflow: hidden; background: var(--input-bg); }
+        body.day-mode .rich-text-container { background: #fff; border-radius: 6px; }
+        .toolbar { padding: 5px 10px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--input-border); display: flex; gap: 5px; }
+        body.day-mode .toolbar { background: #eceff1; }
+        .toolbar button { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; border-radius: 4px; font-weight: bold; }
+        .toolbar button:hover { background: rgba(0,229,255,0.2); color: var(--accent); }
+        .rich-input { width: 100%; min-height: 100px; padding: 12px; background: transparent; color: var(--text-main); border: none; outline: none; resize: vertical; overflow-y: auto; }
+        body.day-mode .rich-input { color: #333; font-family: sans-serif; }
+
+        /* --- MANEUVER BLOCKS --- */
+        .maneuver-block { background: rgba(0,0,0,0.2); padding: 15px; margin-bottom: 15px; border-left: 4px solid var(--accent); border-radius: 4px; position: relative; }
+        body.day-mode .maneuver-block { background: #f8f9fa; border: 1px solid #e0e0e0; border-left: 4px solid var(--accent); }
+        
+        /* --- FOLDERS & DATA LISTS --- */
+        .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .folder-card { 
+            background: var(--card-bg); padding: 20px; border-radius: 4px; border: 1px solid var(--glass-border); 
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 15px; font-weight: bold;
+        }
+        body.day-mode .folder-card { border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .folder-card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 5px 15px rgba(0,229,255,0.1); }
+        .folder-card i { font-size: 1.5em; color: var(--accent); }
+
+        .profile-list-item { 
+            background: var(--card-bg); padding: 15px; margin-bottom: 10px; border-radius: 4px; 
+            border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; 
+        }
+        body.day-mode .profile-list-item { border: 1px solid #e0e0e0; border-radius: 6px; }
+        .profile-list-item:hover { border-color: var(--accent); }
+
+        /* --- PROFILE VIEW & BADGES --- */
+        .badge { display: inline-block; padding: 4px 8px; font-size: 0.8em; border-radius: 4px; background: #37474f; margin-right: 5px; }
+        .warning-banner { background: rgba(198, 40, 40, 0.2); border-left: 4px solid #c62828; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        .vote-bar { display: flex; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--glass-border); }
+
+        /* --- VIEWS --- */
+        .view { display: none; opacity: 0; transition: opacity 0.4s ease; }
+        .view.active { display: block; opacity: 1; }
+
+        /* --- TOGGLE SWITCH --- */
+        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; border: 1px solid #555; }
+        .slider:before { position: absolute; content: "🌙"; display:flex; align-items: center; justify-content: center; height: 24px; width: 24px; left: 3px; bottom: 2px; background-color: #1a1a1a; transition: .4s; border-radius: 50%; font-size: 14px; }
+        input:checked + .slider { background-color: #cfd8dc; border-color: #b0bec5; }
+        input:checked + .slider:before { transform: translateX(28px); content: "☀️"; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+
+        /* --- PRINT STYLES FOR EFB --- */
+        @media print {
+            body { background: #121212 !important; color: #fff !important; } 
+            .bg-layer, .header-controls, .button-back, .vote-bar { display: none !important; }
+            .container { box-shadow: none; border: none; margin: 0; padding: 0; width: 100%; clip-path: none; background: transparent; }
+            .maneuver-block { page-break-inside: avoid; border-left: 4px solid #fff; }
+            h2, h3, h4 { color: #fff !important; }
+        }
+
+        .breadcrumb { font-size: 0.9em; opacity: 0.8; margin-bottom: 20px; font-family: monospace; }
+        .breadcrumb span { cursor: pointer; color: var(--accent); }
+        .breadcrumb span:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <!-- Background Layers -->
+    <div id="bg-gradient" class="bg-layer"></div>
+    <div id="space-elements" class="bg-layer"><div id="stars-container"></div></div>
+
+    <!-- Mode Toggle -->
+    <div class="header-controls">
+        <label class="switch" title="Toggle Day/Night Mode">
+            <input type="checkbox" id="darkModeToggle">
+            <span class="slider round"></span>
+        </label>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="container" id="main-container">
+        
+        <!-- Menu View (Fleets) - FORCED ACTIVE ON LOAD SO UI IS NEVER BLANK -->
+        <div id="menu-view" class="view active" style="display: block; opacity: 1;">
+             <h2><i class="fas fa-plane"></i> Fleet Selection</h2>
+             <div class="flex-row" style="margin-bottom: 20px;">
+                 <input type="text" id="search-box" class="flex-grow" placeholder="Search profiles, maneuvers...">
+                 <button class="button" onclick="performSearch()"><i class="fas fa-search"></i></button>
+             </div>
+             <div id="fleet-grid" class="folder-grid">
+                 <!-- Immediate visual feedback before database connects -->
+                 <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
+                     <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: var(--accent); margin-bottom: 15px;"></i><br>
+                     Establishing connection to database...
+                 </div>
+             </div>
+             <hr style="border-color: var(--glass-border); margin: 30px 0;">
+             <button class="button button-secondary" style="width: 100%;" onclick="navigateTo('submit-view')"><i class="fas fa-file-signature"></i> Submit New Profile</button>
+        </div>
+
+        <!-- Explorer View (Session Types & Folders) -->
+        <div id="explorer-view" class="view">
+             <div class="breadcrumb" id="explorer-breadcrumb"></div>
+             <h2 id="explorer-title">Explorer</h2>
+             
+             <div id="subfolder-section" style="display: none;">
+                 <h3><i class="fas fa-folder-open"></i> Folders</h3>
+                 <div id="subfolder-grid" class="folder-grid"></div>
+             </div>
+
+             <h3 style="margin-top: 30px;"><i class="fas fa-file-alt"></i> Profiles</h3>
+             <div id="profile-list"></div>
+
+             <div style="margin-top: 30px; display: flex; gap: 10px;">
+                 <button type="button" class="button button-back" onclick="navigateUp()">Back</button>
+                 <button type="button" class="button" onclick="navigateTo('submit-view')">+ Add Profile Here</button>
+             </div>
+        </div>
+
+        <!-- Submit View -->
+        <div id="submit-view" class="view">
+             <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>Submit Sim Profile</h2>
+                <button type="button" class="button button-back" onclick="navigateTo('menu-view')">Cancel</button>
+             </div>
+             
+             <form id="entry-form">
+                 <div class="form-section"> 
+                     <label>Fleet Type</label> 
+                     <div class="flex-row">
+                        <select id="submit-fleet" class="flex-grow" required onchange="checkNewInput('submit-fleet', 'fleet-new')">
+                            <option value="" selected disabled>-- Select Fleet --</option>
+                            <option value="__add_new__">+ Create New Fleet</option>
+                        </select>
+                     </div>
+                     <input type="text" id="fleet-new" style="display:none;" placeholder="Enter New Fleet (e.g. B737)">
+                 </div>
+
+                 <div class="form-section"> 
+                     <label>Session Type</label> 
+                     <div class="flex-row">
+                        <select id="submit-session" class="flex-grow" required onchange="checkNewInput('submit-session', 'session-new')">
+                            <option value="" selected disabled>-- Select Session (e.g., Base Check) --</option>
+                            <option value="__add_new__">+ Create New Session Type</option>
+                        </select>
+                     </div>
+                     <input type="text" id="session-new" style="display:none;" placeholder="Enter Session Type">
+                 </div>
+
+                 <div class="form-section"> 
+                     <label>Sub-Folder (Optional)</label> 
+                     <input type="text" id="submit-folder" placeholder="e.g. Captain Command Assessment, Cycle 1">
+                 </div>
+                 
+                 <div class="form-section"> 
+                     <label>Profile Title</label> 
+                     <input type="text" id="submit-title" required placeholder="e.g. Profile A - WSSS EFATO">
+                 </div>
+
+                 <div class="form-section"> 
+                     <label>SOP Version Tag</label> 
+                     <input type="text" id="submit-sop" placeholder="e.g. 2026 Q2 FCTM">
+                 </div>
+
+                 <div class="form-section"> 
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3>Maneuver Blocks</h3> 
+                        <button type="button" class="button button-secondary" onclick="addManeuver()">+ Add Maneuver</button> 
+                    </div>
+                    <div id="maneuvers-container"></div> 
+                 </div>
+
+                 <!-- Rich Text Field -->
+                 <div class="form-section"> 
+                    <label>Miscellaneous Remarks & Briefing Notes</label> 
+                    <div class="rich-text-container">
+                        <div class="toolbar">
+                            <button type="button" onclick="formatText('misc-notes', 'bold')" title="Bold">B</button>
+                            <button type="button" onclick="formatText('misc-notes', 'italic')" title="Italic">I</button>
+                            <button type="button" onclick="formatText('misc-notes', 'underline')" title="Underline">U</button>
+                            <button type="button" onclick="formatText('misc-notes', 'insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
+                        </div>
+                        <div id="misc-notes" class="rich-input" contenteditable="true"></div>
+                    </div>
+                 </div>
+
+                 <div class="form-section" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px;">
+                    <label><input type="checkbox" required> I confirm no instructor names or specific dates revealing my slot are included.</label>
+                 </div>
+
+                 <div class="form-section"> 
+                    <button type="submit" class="button">Publish Profile</button> 
+                 </div>
+             </form>
+        </div>
+
+        <!-- Profile Detail View -->
+        <div id="profile-view" class="view">
+             <div class="breadcrumb" id="profile-breadcrumb"></div>
+             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                 <h2 id="view-title" style="margin-bottom: 5px;">Profile Title</h2>
+                 <button type="button" class="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export EFB</button>
+             </div>
+             <div style="margin-bottom: 20px;">
+                 <span class="badge" id="view-sop"></span>
+                 <span class="badge" id="view-date"></span>
+             </div>
+
+             <div id="age-warning" class="warning-banner" style="display:none;">
+                 <strong><i class="fas fa-exclamation-triangle"></i> Notice:</strong> This profile is over 1 year old. Verify callouts and memory items against current SOPs.
+             </div>
+
+             <div id="view-maneuvers"></div>
+
+             <h3 style="margin-top: 30px;">Briefing & Misc Notes</h3>
+             <div class="rich-text-container" style="padding: 20px; background: rgba(0,0,0,0.1);" id="view-misc"></div>
+
+             <!-- Interaction Bar -->
+             <div class="vote-bar">
+                 <button class="button button-secondary" id="btn-upvote" onclick="submitMetric('upvote')"><i class="fas fa-thumbs-up"></i> Useful (<span id="count-up">0</span>)</button>
+                 <button class="button button-secondary" id="btn-downvote" onclick="submitMetric('downvote')"><i class="fas fa-thumbs-down"></i> Needs Update (<span id="count-down">0</span>)</button>
+                 <div style="flex-grow:1;"></div>
+                 <button class="button" style="background: #e65100;" onclick="submitMetric('flag')"><i class="fas fa-flag"></i> Flag Nuisance</button>
+             </div>
+             
+             <button type="button" class="button button-back" onclick="navigateUp()" style="margin-top: 20px;">Back</button>
+        </div>
+
+    </div> 
+
+    <script>
+        // --- CONFIGURATION ---
+        // IMPORTANT: REPLACE THIS WITH YOUR OWN APPS SCRIPT WEB APP URL
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
+
+        // --- STATE ---
+        let allProfiles = [];
+        let dataTree = {}; 
+        let isFetching = false;
+        let currentNavState = { fleet: null, session: null, folder: null };
+        let viewingRowIndex = null;
+
+        // --- INITIALIZATION ---
+        // Use DOMContentLoaded to ensure UI logic fires the second the HTML is parsed, skipping resource delays
+        document.addEventListener('DOMContentLoaded', async () => {
+            createStars();
+            initDarkMode();
+            // Fetch database asynchronously
+            await fetchAllData();
+            // Once data arrives, overwrite the spinner with the generated menu
+            renderMenu();
+        });
+
+        // --- THEME & BG ---
+        function createStars() {
+            const container = document.getElementById('stars-container');
+            if (!container) return;
+            for(let i=0; i<70; i++){
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = (Math.random() * 2 + 1) + 'px';
+                star.style.height = star.style.width;
+                star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                star.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(star);
+            }
+        }
+
+        function initDarkMode() {
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            if (darkModeToggle) {
+                if(localStorage.getItem('dayMode') === 'true') { 
+                    darkModeToggle.checked = true; 
+                    document.body.classList.add('day-mode'); 
+                }
+                darkModeToggle.addEventListener('change', () => {
+                    if (darkModeToggle.checked) { 
+                        document.body.classList.add('day-mode'); 
+                        localStorage.setItem('dayMode', 'true'); 
+                    } else { 
+                        document.body.classList.remove('day-mode'); 
+                        localStorage.setItem('dayMode', 'false'); 
+                    }
+                });
+            }
+        }
+
+        // --- DATA FETCHING & PARSING WITH ERROR HANDLING ---
+        async function fetchAllData() {
+            if (isFetching) return;
+            isFetching = true;
+            try {
+                const res = await fetch(WEB_APP_URL);
+                const text = await res.text(); // Parse as text first to trap HTML block errors safely
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error("Database returned invalid data. Usually indicates an Apps Script Permission Error:", text);
+                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed with "Who has access" set to "Anyone".</div>`;
+                    return; // Halt further processing
+                }
+                
+                allProfiles = []; dataTree = {};
+                if(data.status === 'success' && data.values) {
+                    data.values.forEach((row, index) => {
+                        if (parseInt(row[10]) >= 3) return; // Hide if flagged 3+ times
+                        
+                        const profile = {
+                            rowIndex: index + 2, 
+                            timestamp: row[0],
+                            fleet: row[1] || 'Unknown Fleet',
+                            sessionType: row[2] || 'General',
+                            subFolder: row[3] || '',
+                            title: row[4] || 'Untitled Profile',
+                            sopVersion: row[5] || 'Unknown SOP',
+                            maneuvers: parseJSON(row[6]),
+                            miscNotes: row[7] || '',
+                            upvotes: parseInt(row[8]) || 0,
+                            downvotes: parseInt(row[9]) || 0,
+                            flags: parseInt(row[10]) || 0
+                        };
+                        allProfiles.push(profile);
+
+                        if(!dataTree[profile.fleet]) dataTree[profile.fleet] = {};
+                        if(!dataTree[profile.fleet][profile.sessionType]) dataTree[profile.fleet][profile.sessionType] = {};
+                        const folderKey = profile.subFolder || "_root";
+                        if(!dataTree[profile.fleet][profile.sessionType][folderKey]) dataTree[profile.fleet][profile.sessionType][folderKey] = [];
+                        
+                        dataTree[profile.fleet][profile.sessionType][folderKey].push(profile);
+                    });
+                }
+            } catch(e) {
+                console.error("Network Error:", e);
+                document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Network Error.</strong><br>Could not reach the database. Check your connection or Web App URL.</div>`;
+            } finally {
+                isFetching = false;
+            }
+        }
+
+        function parseJSON(str) { try { return JSON.parse(str); } catch(e) { return []; } }
+
+        // --- NAVIGATION ---
+        function navigateTo(viewId) {
+            document.querySelectorAll('.view').forEach(v => {
+                v.classList.remove('active');
+                setTimeout(() => { if(!v.classList.contains('active')) v.style.display = 'none'; }, 400);
+            });
+            const active = document.getElementById(viewId);
+            if(active) {
+                active.style.display = 'block';
+                setTimeout(() => active.classList.add('active'), 10);
+            }
+
+            if(viewId === 'menu-view') renderMenu();
+            if(viewId === 'submit-view') populateFormDropdowns();
+        }
+
+        function navigateUp() {
+            if(currentNavState.folder) { currentNavState.folder = null; renderExplorer(); }
+            else if(currentNavState.session) { currentNavState.session = null; renderExplorer(); }
+            else { currentNavState.fleet = null; navigateTo('menu-view'); }
+        }
+
+        // --- RENDER VIEWS ---
+        function renderMenu() {
+            const grid = document.getElementById('fleet-grid');
+            // If the grid already has an error message, do not overwrite it.
+            if(grid.innerHTML.includes("Connection Refused") || grid.innerHTML.includes("Network Error")) return;
+            
+            grid.innerHTML = '';
+            const fleets = Object.keys(dataTree);
+            if(fleets.length === 0) {
+                grid.innerHTML = "<p style='grid-column: 1/-1;'>Database initialized. No profiles found. Be the first to submit!</p>";
+                return;
+            }
+            
+            fleets.sort().forEach(fleet => {
+                grid.innerHTML += `<div class="folder-card" onclick="openFleet('${fleet}')">
+                                      <i class="fas fa-plane"></i> ${fleet}
+                                   </div>`;
+            });
+        }
+
+        function openFleet(fleet) {
+            currentNavState.fleet = fleet;
+            currentNavState.session = null;
+            currentNavState.folder = null;
+            renderExplorer();
+            navigateTo('explorer-view');
+        }
+
+        function openSession(session) {
+            currentNavState.session = session;
+            currentNavState.folder = null;
+            renderExplorer();
+        }
+
+        function openFolder(folder) {
+            currentNavState.folder = folder;
+            renderExplorer();
+        }
+
+        function renderExplorer() {
+            const bc = document.getElementById('explorer-breadcrumb');
+            const title = document.getElementById('explorer-title');
+            const subGrid = document.getElementById('subfolder-grid');
+            const subSec = document.getElementById('subfolder-section');
+            const pList = document.getElementById('profile-list');
+            
+            subGrid.innerHTML = ''; pList.innerHTML = ''; subSec.style.display = 'none';
+
+            let bcrumbHtml = `<span onclick="navigateUp()">Home</span>`;
+            if(currentNavState.fleet) bcrumbHtml += ` > <span onclick="currentNavState.session=null; currentNavState.folder=null; renderExplorer()">${currentNavState.fleet}</span>`;
+            if(currentNavState.session) bcrumbHtml += ` > <span onclick="currentNavState.folder=null; renderExplorer()">${currentNavState.session}</span>`;
+            if(currentNavState.folder) bcrumbHtml += ` > <span>${currentNavState.folder}</span>`;
+            bc.innerHTML = bcrumbHtml;
+
+            if(currentNavState.fleet && !currentNavState.session) {
+                title.innerHTML = `${currentNavState.fleet} Sessions`;
+                subSec.style.display = 'block';
+                if(dataTree[currentNavState.fleet]) {
+                    Object.keys(dataTree[currentNavState.fleet]).sort().forEach(sess => {
+                        subGrid.innerHTML += `<div class="folder-card" onclick="openSession('${sess}')"><i class="fas fa-chalkboard-teacher"></i> ${sess}</div>`;
+                    });
+                }
+            }
+            else if (currentNavState.session && !currentNavState.folder) {
+                title.innerHTML = currentNavState.session;
+                if(dataTree[currentNavState.fleet] && dataTree[currentNavState.fleet][currentNavState.session]) {
+                    const folders = Object.keys(dataTree[currentNavState.fleet][currentNavState.session]);
+                    folders.forEach(folder => {
+                        if(folder !== "_root") {
+                            subSec.style.display = 'block';
+                            subGrid.innerHTML += `<div class="folder-card" onclick="openFolder('${folder}')"><i class="fas fa-folder"></i> ${folder}</div>`;
+                        }
+                    });
+                    if(dataTree[currentNavState.fleet][currentNavState.session]["_root"]) {
+                        renderProfileList(dataTree[currentNavState.fleet][currentNavState.session]["_root"], pList);
+                    }
+                }
+            }
+            else if (currentNavState.folder) {
+                title.innerHTML = currentNavState.folder;
+                if(dataTree[currentNavState.fleet] && dataTree[currentNavState.fleet][currentNavState.session]) {
+                    renderProfileList(dataTree[currentNavState.fleet][currentNavState.session][currentNavState.folder], pList);
+                }
+            }
+        }
+
+        function renderProfileList(profilesArray, container) {
+            if(!profilesArray || profilesArray.length === 0) { container.innerHTML = "<p>No profiles here yet.</p>"; return; }
+            profilesArray.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(p => {
+                const helpfulPct = (p.upvotes + p.downvotes) > 0 ? Math.round((p.upvotes / (p.upvotes + p.downvotes)) * 100) : 0;
+                let ratingHtml = helpfulPct > 0 ? `<small style="color:var(--accent);">${helpfulPct}% Useful</small>` : '';
+                
+                container.innerHTML += `<div class="profile-list-item" onclick="viewProfile(${p.rowIndex})">
+                                            <div>
+                                                <div style="font-weight:bold; font-size:1.1em; margin-bottom:5px;">${p.title}</div>
+                                                <small style="opacity:0.7;">SOP: ${p.sopVersion}</small>
+                                            </div>
+                                            <div>${ratingHtml}</div>
+                                        </div>`;
+            });
+        }
+
+        function viewProfile(rowIndex) {
+            const p = allProfiles.find(x => x.rowIndex === rowIndex);
+            if(!p) return;
+            viewingRowIndex = rowIndex;
+            
+            document.getElementById('profile-breadcrumb').innerHTML = `${p.fleet} > ${p.sessionType} ` + (p.subFolder ? `> ${p.subFolder}` : '');
+            document.getElementById('view-title').textContent = p.title;
+            document.getElementById('view-sop').textContent = `SOP: ${p.sopVersion}`;
+            
+            let dateStr = "Unknown Date";
+            if(p.timestamp) {
+                let d = isNaN(p.timestamp) ? new Date(p.timestamp) : new Date((p.timestamp - 25569) * 86400 * 1000);
+                dateStr = d.toLocaleDateString();
+                
+                const oneYearAgo = new Date(); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                document.getElementById('age-warning').style.display = (d < oneYearAgo) ? 'block' : 'none';
+            }
+            document.getElementById('view-date').textContent = `Submitted: ${dateStr}`;
+
+            const mContainer = document.getElementById('view-maneuvers');
+            mContainer.innerHTML = '';
+            if(p.maneuvers && p.maneuvers.length > 0) {
+                p.maneuvers.forEach((m, i) => {
+                    mContainer.innerHTML += `
+                        <div class="maneuver-block">
+                            <h4 style="margin-bottom:10px;">${i+1}. ${m.name}</h4>
+                            <p><strong>Targets/Callouts:</strong><br> ${m.callouts}</p>
+                            <p><strong>Pointers/Traps:</strong><br> ${m.pointers}</p>
+                        </div>`;
+                });
+            } else { mContainer.innerHTML = "<p>No specific maneuvers documented.</p>"; }
+
+            document.getElementById('view-misc').innerHTML = p.miscNotes || 'None.';
+            
+            document.getElementById('count-up').textContent = p.upvotes;
+            document.getElementById('count-down').textContent = p.downvotes;
+
+            navigateTo('profile-view');
+        }
+
+        // --- SUBMIT FORM LOGIC ---
+        function checkNewInput(selectId, inputId) {
+            const sel = document.getElementById(selectId);
+            document.getElementById(inputId).style.display = sel.value === '__add_new__' ? 'block' : 'none';
+        }
+
+        function populateFormDropdowns() {
+            const fleetSel = document.getElementById('submit-fleet');
+            const sessSel = document.getElementById('submit-session');
+            
+            fleetSel.innerHTML = '<option value="" selected disabled>-- Select Fleet --</option><option value="__add_new__">+ Create New Fleet</option>';
+            sessSel.innerHTML = '<option value="" selected disabled>-- Select Session --</option><option value="__add_new__">+ Create New Session Type</option>';
+
+            Object.keys(dataTree).sort().forEach(f => {
+                fleetSel.innerHTML += `<option value="${f}">${f}</option>`;
+            });
+
+            let allSessions = new Set();
+            Object.values(dataTree).forEach(fleetObj => Object.keys(fleetObj).forEach(s => allSessions.add(s)));
+            Array.from(allSessions).sort().forEach(s => {
+                sessSel.innerHTML += `<option value="${s}">${s}</option>`;
+            });
+        }
+
+        function addManeuver() {
+            const div = document.createElement('div');
+            div.className = 'maneuver-block';
+            div.innerHTML = `
+                <button type="button" class="button-delete" onclick="this.parentElement.remove()" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
+                <input type="text" placeholder="Maneuver Name (e.g. EFATO)" class="m-name" required style="margin-bottom:10px; font-weight:bold;">
+                <textarea placeholder="Power settings, pitch targets, callouts..." class="m-callouts" rows="2" style="margin-bottom:10px;"></textarea>
+                <textarea placeholder="Learning pointers, common traps..." class="m-pointers" rows="2"></textarea>
+            `;
+            document.getElementById('maneuvers-container').appendChild(div);
+        }
+
+        function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
+
+        document.getElementById('entry-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            btn.disabled = true; btn.textContent = "Publishing...";
+
+            let fleet = document.getElementById('submit-fleet').value;
+            if(fleet === '__add_new__') fleet = document.getElementById('fleet-new').value.trim();
+            
+            let session = document.getElementById('submit-session').value;
+            if(session === '__add_new__') session = document.getElementById('session-new').value.trim();
+
+            const formData = new URLSearchParams();
+            formData.append('action', 'submit_profile');
+            formData.append('fleet', fleet);
+            formData.append('sessionType', session);
+            formData.append('subFolder', document.getElementById('submit-folder').value.trim());
+            formData.append('profileTitle', document.getElementById('submit-title').value.trim());
+            formData.append('sopVersion', document.getElementById('submit-sop').value.trim());
+            formData.append('miscNotes', document.getElementById('misc-notes').innerHTML);
+
+            const mList = [];
+            document.querySelectorAll('#maneuvers-container .maneuver-block').forEach(div => {
+                mList.push({
+                    name: div.querySelector('.m-name').value.trim(),
+                    callouts: div.querySelector('.m-callouts').value.trim(),
+                    pointers: div.querySelector('.m-pointers').value.trim()
+                });
+            });
+            formData.append('maneuvers', JSON.stringify(mList));
+
+            try {
+                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
+                const res = await response.json();
+                if(res.status === 'success') {
+                    alert("Profile Published!");
+                    this.reset();
+                    document.getElementById('maneuvers-container').innerHTML = '';
+                    document.getElementById('misc-notes').innerHTML = '';
+                    await fetchAllData();
+                    navigateTo('menu-view');
+                } else throw new Error(res.message);
+            } catch(error) { alert("Submission failed: " + error.message); } 
+            finally { btn.disabled = false; btn.textContent = "Publish Profile"; }
+        });
+
+        // --- VOTING & FLAGGING ---
+        async function submitMetric(metricType) {
+            if(!viewingRowIndex) return;
+            const btn = document.getElementById(`btn-${metricType}`) || document.activeElement;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i>";
+            btn.disabled = true;
+
+            const formData = new URLSearchParams();
+            formData.append('action', 'update_metric');
+            formData.append('rowIndex', viewingRowIndex);
+            formData.append('metricType', metricType);
+
+            try {
+                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
+                const res = await response.json();
+                if(res.status === 'success') {
+                    if(metricType === 'flag') alert("Post flagged. Admins will review.");
+                    else {
+                        const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
+                        if(span) span.textContent = res.newValue;
+                    }
+                    const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
+                    if(p) {
+                        if(metricType==='upvote') p.upvotes = res.newValue;
+                        if(metricType==='downvote') p.downvotes = res.newValue;
+                        if(metricType==='flag') p.flags = res.newValue;
+                    }
+                }
+            } catch(e) { alert("Action failed."); }
+            finally { btn.innerHTML = originalText; btn.disabled = false; }
+        }
+
+        // --- SEARCH ---
+        function performSearch() {
+            const term = document.getElementById('search-box').value.toLowerCase().trim();
+            if(!term) return;
+            
+            const results = allProfiles.filter(p => 
+                p.title.toLowerCase().includes(term) || 
+                p.fleet.toLowerCase().includes(term) ||
+                (p.maneuvers && p.maneuvers.some(m => m.name.toLowerCase().includes(term)))
+            );
+
+            currentNavState = { fleet: null, session: null, folder: null };
+            document.getElementById('explorer-breadcrumb').innerHTML = `<span onclick="navigateTo('menu-view')">Home</span> > Search Results for "${term}"`;
+            document.getElementById('explorer-title').textContent = "Search Results";
+            document.getElementById('subfolder-section').style.display = 'none';
+            
+            renderProfileList(results, document.getElementById('profile-list'));
+            navigateTo('explorer-view');
+        }
+    </script>
+</body>
+</html>
