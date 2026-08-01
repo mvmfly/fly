@@ -118,43 +118,16 @@
             .vote-bar .flex-grow { display: none; }
         }
 
-        /* --- PDF EXPORT STYLES --- */
         @media print {
-            body { 
-                background: #fff !important; 
-                color: #000 !important; 
-            } 
+            body { background: #fff !important; color: #000 !important; } 
             .bg-layer, .button, .vote-bar, .header-controls { display: none !important; }
-            .container { 
-                box-shadow: none !important; 
-                border: none !important; 
-                margin: 0 !important; 
-                padding: 0 !important; 
-                width: 100% !important; 
-                background: #fff !important; 
-            }
-            .maneuver-block { 
-                page-break-inside: avoid; 
-                border-left: 3px solid #000 !important; 
-                border-radius: 0 !important;
-                background: #fff !important; 
-                color: #000 !important;
-                padding: 10px 15px !important;
-                margin-bottom: 10px !important;
-                border-bottom: 1px solid #ccc !important;
-                border-top: 1px solid #ccc !important;
-                border-right: 1px solid #ccc !important;
-            }
+            .container { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; background: #fff !important; }
+            .maneuver-block { page-break-inside: avoid; border-left: 3px solid #000 !important; border-radius: 0 !important; background: #fff !important; color: #000 !important; padding: 10px 15px !important; margin-bottom: 10px !important; border-bottom: 1px solid #ccc !important; border-top: 1px solid #ccc !important; border-right: 1px solid #ccc !important; }
             h2, h3, h4 { color: #000 !important; margin-top: 10px !important; margin-bottom: 5px !important; }
             p { color: #000 !important; margin-top: 5px !important; margin-bottom: 5px !important; }
             strong { color: #000 !important; }
             .badge { background: #f0f0f0 !important; color: #000 !important; border: 1px solid #000 !important; }
-            .rich-text-container { 
-                background: #fff !important; 
-                border: none !important; 
-                padding: 0 !important; 
-                color: #000 !important; 
-            }
+            .rich-text-container { background: #fff !important; border: none !important; padding: 0 !important; color: #000 !important; }
             #view-misc { padding: 0 !important; }
         }
     </style>
@@ -195,7 +168,7 @@
              <div id="profile-list"></div>
 
              <div style="margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px;">
-                 <button type="button" class="button button-back" onclick="navigateUp()">Back</button>
+                 <button type="button" class="button button-back" onclick="window.history.back()">Back</button>
                  <button type="button" class="button" onclick="openSubmitForm()">+ Add Profile Here</button>
              </div>
         </div>
@@ -203,7 +176,7 @@
         <div id="submit-view" class="view">
              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <h2 style="margin: 0;" id="submit-header-title">Submit Sim Profile</h2>
-                <button type="button" class="button button-back" onclick="navigateTo('menu-view')" style="margin: 0;">Cancel</button>
+                <button type="button" class="button button-back" onclick="window.history.back()" style="margin: 0;">Cancel</button>
              </div>
              
              <form id="entry-form">
@@ -295,13 +268,13 @@
                  <button class="button" style="background: #e65100;" onclick="submitMetric('flag')"><i class="fas fa-flag"></i> Flag Nuisance</button>
              </div>
              
-             <button type="button" class="button button-back" onclick="navigateUp()" style="margin-top: 20px;">Back</button>
+             <button type="button" class="button button-back" onclick="window.history.back()" style="margin-top: 20px;">Back</button>
         </div>
 
     </div> 
 
     <script>
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwIzE7tLjVK_FUrdB-kO9HiHctyl5URxDoxCZJKxaQMz-dOk7v_hACfGJ72XT09waLh/exec'; 
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
 
         let allProfiles = [];
         let dataTree = { profiles: [], children: {} }; 
@@ -314,9 +287,49 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             createStars();
+            history.replaceState({ viewId: 'menu-view', navPath: [], rowIndex: null, searchTerm: null }, "", "#menu-view");
             await fetchAllData();
-            renderMenu();
+            applyState('menu-view');
         });
+
+        window.addEventListener('popstate', (event) => {
+            if (event.state) {
+                currentNavPath = event.state.navPath || [];
+                viewingRowIndex = event.state.rowIndex || null;
+                applyState(event.state.viewId, event.state.searchTerm);
+            } else {
+                currentNavPath = [];
+                viewingRowIndex = null;
+                applyState('menu-view');
+            }
+        });
+
+        function goToView(viewId, newPath = null, newRowIndex = null, searchTerm = null) {
+            if(newPath !== null) currentNavPath = [...newPath];
+            if(newRowIndex !== null) viewingRowIndex = newRowIndex;
+            history.pushState({ viewId, navPath: [...currentNavPath], rowIndex: viewingRowIndex, searchTerm }, "", `#${viewId}`);
+            applyState(viewId, searchTerm);
+        }
+
+        function applyState(viewId, searchTerm = null) {
+            document.querySelectorAll('.view').forEach(v => {
+                v.classList.remove('active');
+                setTimeout(() => { if(!v.classList.contains('active')) v.style.display = 'none'; }, 400);
+            });
+            const active = document.getElementById(viewId);
+            if(active) {
+                active.style.display = 'block';
+                setTimeout(() => active.classList.add('active'), 10);
+            }
+
+            if(viewId === 'menu-view') renderMenu();
+            else if(viewId === 'explorer-view') {
+                if(searchTerm) renderSearchResults(searchTerm);
+                else renderExplorer();
+            }
+            else if(viewId === 'submit-view') populateFormDropdowns();
+            else if(viewId === 'profile-view') renderProfileData();
+        }
 
         function createStars() {
             const container = document.getElementById('stars-container');
@@ -394,35 +407,9 @@
 
         function parseJSON(str) { try { return JSON.parse(str); } catch(e) { return []; } }
 
-        function navigateTo(viewId) {
-            document.querySelectorAll('.view').forEach(v => {
-                v.classList.remove('active');
-                setTimeout(() => { if(!v.classList.contains('active')) v.style.display = 'none'; }, 400);
-            });
-            const active = document.getElementById(viewId);
-            if(active) {
-                active.style.display = 'block';
-                setTimeout(() => active.classList.add('active'), 10);
-            }
-
-            if(viewId === 'menu-view') renderMenu();
-            if(viewId === 'submit-view') populateFormDropdowns();
-        }
-
-        function navigateUp() {
-            if(currentNavPath.length > 0) {
-                currentNavPath.pop();
-                if(currentNavPath.length === 0) navigateTo('menu-view');
-                else renderExplorer();
-            } else {
-                navigateTo('menu-view');
-            }
-        }
-
         function openNode(nodeName) {
-            currentNavPath.push(nodeName);
-            renderExplorer();
-            if(currentNavPath.length === 1) navigateTo('explorer-view');
+            let newPath = [...currentNavPath, nodeName];
+            goToView('explorer-view', newPath);
         }
 
         function renderMenu() {
@@ -453,7 +440,7 @@
             subGrid.innerHTML = ''; pList.innerHTML = ''; subSec.style.display = 'none';
 
             let current = dataTree;
-            let bcrumbHtml = `<span onclick="currentNavPath=[]; navigateTo('menu-view');">Home</span>`;
+            let bcrumbHtml = `<span onclick="goToView('menu-view', [])">Home</span>`;
             
             let tempPath = [];
             currentNavPath.forEach((part, index) => {
@@ -462,13 +449,13 @@
                 if (index === currentNavPath.length - 1) {
                     bcrumbHtml += ` > <span>${part}</span>`;
                 } else {
-                    bcrumbHtml += ` > <span onclick='currentNavPath=${pathCopy}; renderExplorer();'>${part}</span>`;
+                    bcrumbHtml += ` > <span onclick='goToView("explorer-view", ${pathCopy})'>${part}</span>`;
                 }
                 current = current.children[part];
             });
             
             bc.innerHTML = bcrumbHtml;
-            title.innerHTML = currentNavPath[currentNavPath.length - 1];
+            title.innerHTML = currentNavPath[currentNavPath.length - 1] || 'Explorer';
 
             const folders = Object.keys(current.children);
             if (folders.length > 0) {
@@ -504,9 +491,13 @@
         }
 
         function viewProfile(rowIndex) {
-            const p = allProfiles.find(x => x.rowIndex === rowIndex);
+            goToView('profile-view', currentNavPath, rowIndex);
+        }
+
+        function renderProfileData() {
+            if(!viewingRowIndex) return;
+            const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
             if(!p) return;
-            viewingRowIndex = rowIndex;
             
             let pathDisplay = p.fleet + ' > ' + p.sessionType;
             if(p.subFolder) pathDisplay += ' > ' + p.subFolder.split('/').map(s=>s.trim()).join(' > ');
@@ -517,7 +508,10 @@
             let dateStr = "Unknown Date";
             if(p.timestamp) {
                 let d = isNaN(p.timestamp) ? new Date(p.timestamp) : new Date((p.timestamp - 25569) * 86400 * 1000);
-                dateStr = d.toLocaleDateString();
+                let day = String(d.getDate()).padStart(2, '0');
+                let month = String(d.getMonth() + 1).padStart(2, '0');
+                let year = String(d.getFullYear()).slice(-2);
+                dateStr = `${day}${month}${year}`;
             }
             document.getElementById('view-date').textContent = `Submitted: ${dateStr}`;
 
@@ -543,8 +537,6 @@
             document.getElementById('view-misc').innerHTML = p.miscNotes || '';
             document.getElementById('count-up').textContent = p.upvotes;
             document.getElementById('count-down').textContent = p.downvotes;
-
-            navigateTo('profile-view');
         }
 
         function openSubmitForm() {
@@ -574,7 +566,7 @@
                     }
                 }
             }
-            navigateTo('submit-view');
+            goToView('submit-view', currentNavPath);
         }
 
         function triggerEdit() {
@@ -629,7 +621,7 @@
                 mContainer.appendChild(div);
             });
 
-            navigateTo('submit-view');
+            goToView('submit-view', currentNavPath);
         }
 
         function populateFormDropdowns() {
@@ -795,11 +787,7 @@
                     document.getElementById('maneuvers-container').innerHTML = '';
                     document.getElementById('misc-notes').innerHTML = '';
                     await fetchAllData();
-                    if(editingRowIndex) {
-                        viewProfile(editingRowIndex); 
-                    } else {
-                        navigateTo('menu-view');
-                    }
+                    window.history.back(); // Automatically drops back to the previous view and reloads state
                 } else throw new Error(res.message);
             } catch(error) { 
                 console.error(error); 
@@ -842,25 +830,26 @@
             }
         }
 
-        function performSearch() {
-            const term = document.getElementById('search-box').value.toLowerCase().trim();
-            if(!term) return;
+        function renderSearchResults(term) {
+            document.getElementById('explorer-breadcrumb').innerHTML = `<span onclick="goToView('menu-view', [])">Home</span> > Search Results for "${term}"`;
+            document.getElementById('explorer-title').textContent = "Search Results";
+            document.getElementById('subfolder-section').style.display = 'none';
             
             const results = allProfiles.filter(p => 
                 p.title.toLowerCase().includes(term) || 
                 p.fleet.toLowerCase().includes(term) ||
                 (p.maneuvers && p.maneuvers.some(m => m.name.toLowerCase().includes(term)))
             );
-
-            currentNavPath = [];
-            document.getElementById('explorer-breadcrumb').innerHTML = `<span onclick="navigateTo('menu-view')">Home</span> > Search Results for "${term}"`;
-            document.getElementById('explorer-title').textContent = "Search Results";
-            document.getElementById('subfolder-section').style.display = 'none';
             
             const pList = document.getElementById('profile-list');
             pList.innerHTML = '';
             renderProfileList(results, pList);
-            navigateTo('explorer-view');
+        }
+
+        function performSearch() {
+            const term = document.getElementById('search-box').value.toLowerCase().trim();
+            if(!term) return;
+            goToView('explorer-view', [], null, term);
         }
     </script>
 </body>
