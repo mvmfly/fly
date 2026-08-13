@@ -186,7 +186,7 @@
              <div id="profile-list"></div>
 
              <div style="margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px;">
-                 <button type="button" class="button button-back" onclick="navigateUp()">Back</button>
+                 <button type="button" class="button button-back" onclick="window.history.back()">Back</button>
                  <button type="button" class="button button-highlight" onclick="openSubmitForm()">+ Add Profile Here</button>
              </div>
         </div>
@@ -427,8 +427,6 @@
 
                 if(data.status === 'success' && data.values) {
                     data.values.forEach((row, index) => {
-                        if (parseInt(row[10]) >= 3) return; 
-                        
                         const profile = {
                             rowIndex: row[12] ? parseInt(row[12]) : (index + 2), 
                             timestamp: row[0],
@@ -442,21 +440,24 @@
                             downvotes: parseInt(row[9]) || 0,
                             flags: parseInt(row[10]) || 0
                         };
-                        allProfiles.push(profile);
+                        
+                        if (profile.flags < 3) {
+                            allProfiles.push(profile);
 
-                        let pathParts = [profile.fleet, profile.sessionType];
-                        if (profile.subFolder) {
-                            pathParts = pathParts.concat(profile.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
-                        }
-
-                        let current = dataTree;
-                        pathParts.forEach(part => {
-                            if (!current.children[part]) {
-                                current.children[part] = { profiles: [], children: {} };
+                            let pathParts = [profile.fleet, profile.sessionType];
+                            if (profile.subFolder) {
+                                pathParts = pathParts.concat(profile.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
                             }
-                            current = current.children[part];
-                        });
-                        current.profiles.push(profile);
+
+                            let current = dataTree;
+                            pathParts.forEach(part => {
+                                if (!current.children[part]) {
+                                    current.children[part] = { profiles: [], children: {} };
+                                }
+                                current = current.children[part];
+                            });
+                            current.profiles.push(profile);
+                        }
                     });
                 }
             } catch(e) {
@@ -707,7 +708,7 @@
                             }
 
                             let antHtml = ant ? `<p style="white-space: pre-wrap; margin-top: 10px; margin-bottom: 5px;"><strong>Anticipate:</strong><br>${ant}</p>` : '';
-                            let ptrHtml = ptr ? `<p style="white-space: pre-wrap; margin-top: 10px; margin-bottom: 5px;"><strong>Pointers/Traps:</strong><br>${ptr}</p>` : '';
+                            let ptrHtml = ptr ? `<p style="white-space: pre-wrap; margin-top: 5px; margin-bottom: 5px;"><strong>Pointers/Traps:</strong><br>${ptr}</p>` : '';
 
                             container.innerHTML += `
                                 <div class="maneuver-block">
@@ -1056,6 +1057,17 @@
             }
             let finalSubFolder = finalPathArray.join(' / ');
 
+            const formData = new URLSearchParams();
+            formData.append('action', editingRowIndex ? 'edit_profile' : 'submit_profile');
+            if (editingRowIndex) formData.append('rowIndex', editingRowIndex);
+            
+            formData.append('fleet', fleet);
+            formData.append('sessionType', session);
+            formData.append('subFolder', finalSubFolder);
+            formData.append('profileTitle', document.getElementById('submit-title').value.trim());
+            formData.append('sopVersion', ""); 
+            formData.append('miscNotes', document.getElementById('misc-notes').innerHTML);
+
             const mList = [];
             document.querySelectorAll('#maneuvers-container .maneuver-block').forEach(div => {
                 mList.push({
@@ -1066,32 +1078,16 @@
                     pointers: div.querySelector('.m-pointers').value.trim()
                 });
             });
-
-            const payload = {
-                action: editingRowIndex ? 'edit_profile' : 'submit_profile',
-                rowIndex: editingRowIndex || '',
-                fleet: fleet,
-                sessionType: session,
-                subFolder: finalSubFolder,
-                profileTitle: document.getElementById('submit-title').value.trim(),
-                sopVersion: "", 
-                miscNotes: document.getElementById('misc-notes').innerHTML,
-                maneuvers: JSON.stringify(mList)
-            };
+            formData.append('maneuvers', JSON.stringify(mList));
 
             try {
-                const response = await fetch(WEB_APP_URL, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload),
-                    redirect: 'follow' 
-                });
+                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
                 const textRes = await response.text();
                 let res;
                 try {
                     res = JSON.parse(textRes);
                 } catch(e) {
-                    throw new Error("Backend did not return valid JSON. Ensure Google Apps Script is updated and deployed as 'New Version'.");
+                    throw new Error("Backend did not return valid JSON. Check Apps Script deployment.\nResponse snippet: " + textRes.substring(0, 100));
                 }
                 
                 if(res.status === 'success') {
@@ -1124,19 +1120,13 @@
             btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i>";
             btn.disabled = true;
 
-            const payload = {
-                action: 'update_metric',
-                rowIndex: viewingRowIndex,
-                metricType: metricType
-            };
+            const formData = new URLSearchParams();
+            formData.append('action', 'update_metric');
+            formData.append('rowIndex', viewingRowIndex);
+            formData.append('metricType', metricType);
 
             try {
-                const response = await fetch(WEB_APP_URL, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload),
-                    redirect: 'follow' 
-                });
+                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
                 const res = await response.json();
                 if(res.status === 'success') {
                     if(metricType !== 'flag') {
