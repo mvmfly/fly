@@ -1162,12 +1162,18 @@
             
             btn.disabled = false; btn.textContent = originalBtnText; 
 
-            // 6. Clean up DOM memory and fetch true live data in the background
-            setTimeout(() => {
-                document.body.removeChild(form);
-                document.body.removeChild(iframe);
-                fetchAllData(); 
-            }, 3500);
+            // 6. FIX: Wait until the Iframe physically loads the success response before running garbage collection.
+            // If the iframe is removed during processing, the browser aborts the HTTP POST and the database update completely fails.
+            const handleFormCleanup = () => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(form);
+                    document.body.removeChild(iframe);
+                    fetchAllData(); 
+                }
+            };
+            
+            iframe.onload = handleFormCleanup;
+            setTimeout(handleFormCleanup, 12000); // 12s failsafe timeout fallback
         });
 
         async function submitMetric(metricType) {
@@ -1216,12 +1222,18 @@
                 if(metricType==='flag') p.flags++;
             }
             
-            setTimeout(() => {
-                document.body.removeChild(form);
-                document.body.removeChild(iframe);
-                btn.innerHTML = originalText; 
-                btn.disabled = false; 
-            }, 2000);
+            // FIX: Rely on the server response to finish, rather than a tiny arbitrary timer.
+            const handleMetricCleanup = () => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(form);
+                    document.body.removeChild(iframe);
+                    btn.innerHTML = originalText; 
+                    btn.disabled = false; 
+                }
+            };
+            
+            iframe.onload = handleMetricCleanup;
+            setTimeout(handleMetricCleanup, 12000); // 12s failsafe timeout fallback
         }
 
         function renderSearchResults(term) {
