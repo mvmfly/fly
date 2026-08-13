@@ -102,7 +102,7 @@
         }
         .profile-list-item:hover { border-color: var(--accent); }
 
-        .badge { display: inline-block; padding: 6px 10px; font-size: 0.85em; font-weight:bold; border-radius: 4px; background: #37474f; margin-right: 5px; margin-bottom: 5px;}
+        .badge { display: inline-block; padding: 4px 8px; font-size: 0.8em; font-weight:bold; border-radius: 4px; background: #37474f; margin-right: 5px; margin-bottom: 5px;}
         .badge-eicas { background: #e65100; color: #fff; }
         .badge-phase { background: var(--accent); color: #000; }
 
@@ -412,13 +412,15 @@
             if (isFetching) return;
             isFetching = true;
             try {
-                const res = await fetch(WEB_APP_URL);
+                // Add a timestamp parameter to destroy browser cache and force live data
+                const fetchUrl = WEB_APP_URL + "?t=" + new Date().getTime();
+                const res = await fetch(fetchUrl, { redirect: 'follow' });
                 const text = await res.text(); 
                 
                 let data;
                 try { data = JSON.parse(text); } 
                 catch (parseError) {
-                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly.</div>`;
+                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly as 'Anyone'.</div>`;
                     return; 
                 }
                 
@@ -430,7 +432,6 @@
                         if (parseInt(row[10]) >= 3) return; 
                         
                         const profile = {
-                            // Uses the absolute spreadsheet row index passed by Apps Script to prevent overwrite bugs
                             rowIndex: row[12] ? parseInt(row[12]) : (index + 2), 
                             timestamp: row[0],
                             fleet: row[1] || 'Unknown Fleet',
@@ -855,7 +856,7 @@
 
                     div.innerHTML = `
                         <button type="button" class="button-delete" onclick="this.parentElement.remove(); updateManeuverButtons();" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
-                        <div class="flex-row" style="margin-bottom:5px; padding-right: 40px;">
+                        <div class="flex-row" style="margin-bottom:10px; padding-right: 40px;">
                             ${phaseHtml}
                             ${typeHtml}
                         </div>
@@ -1081,21 +1082,18 @@
             formData.append('maneuvers', JSON.stringify(mList));
 
             try {
-                // The 'no-cors' parameter creates an Opaque request. This physically prevents 
-                // the browser from blocking the Google Apps Script HTTP 302 redirect.
-                await fetch(WEB_APP_URL, { 
-                    method: 'POST', 
-                    body: formData,
-                    mode: 'no-cors' 
-                });
+                // Sent with 'no-cors' to entirely bypass the browser's redirect block 
+                await fetch(WEB_APP_URL, { method: 'POST', body: formData, mode: 'no-cors' });
                 
-                // Allow GAS to write to the spreadsheet before we pull the updated data
-                await new Promise(r => setTimeout(r, 1000));
+                // Allow Google's backend a brief moment to finish overwriting the cells
+                await new Promise(r => setTimeout(r, 1500));
                 
                 this.reset();
                 document.getElementById('maneuvers-container').innerHTML = '';
                 document.getElementById('misc-notes').innerHTML = '';
                 updateManeuverButtons();
+                
+                // Fetch the live spreadsheet, NOT the cache
                 await fetchAllData();
                 
                 if(editingRowIndex) {
@@ -1106,7 +1104,7 @@
                     goToView('explorer-view', currentNavPath);
                 }
             } catch(error) { 
-                alert("Network error: Unable to connect to the database.");
+                alert("Network error saving profile.");
                 console.error(error); 
             } finally { 
                 btn.disabled = false; btn.textContent = originalBtnText; 
@@ -1126,11 +1124,7 @@
             formData.append('metricType', metricType);
 
             try {
-                await fetch(WEB_APP_URL, { 
-                    method: 'POST', 
-                    body: formData,
-                    mode: 'no-cors'
-                });
+                await fetch(WEB_APP_URL, { method: 'POST', body: formData, mode: 'no-cors' });
                 
                 if(metricType !== 'flag') {
                     const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
