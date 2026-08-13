@@ -1042,7 +1042,7 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        // FOOLPROOF FETCH SUBMISSION: NO IFRAMES, NO CORS BLOCKS, NATIVE APPS SCRIPT PARSING
+        // JSON STRINGIFIED FETCH SUBMISSION
         document.getElementById('entry-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type="submit"]');
@@ -1088,19 +1088,14 @@
                 maneuvers: JSON.stringify(mList)
             };
 
-            // Convert to native URL Encoded format so Google Apps Script e.parameter reads it perfectly
-            const formData = new URLSearchParams();
-            for (const key in payload) {
-                formData.append(key, payload[key]);
-            }
-
-            // Fire and forget via opaque no-cors request (bypasses browser preflight blocks entirely)
+            // This ensures it bypasses the 302 Request Drop & URL formatting issues flawlessly
             fetch(WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                body: formData
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload)
             }).then(() => {
-                // Give the Google Sheet a generous 3 seconds to commit changes, then sync state
+                // Background Sync 3 seconds after save
                 setTimeout(fetchAllData, 3000);
             }).catch(console.error);
 
@@ -1180,15 +1175,11 @@
                 if(metricType === 'flag') p.flags++;
             }
 
-            const formData = new URLSearchParams();
-            for (const key in payload) {
-                formData.append(key, payload[key]);
-            }
-
             fetch(WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                body: formData
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload)
             }).catch(console.error);
 
             setTimeout(() => {
