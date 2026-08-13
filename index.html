@@ -58,6 +58,10 @@
         .button:hover { filter: brightness(1.2); box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); }
         .button-secondary, .button-back { background: #37474f; color: #eceff1; }
         .button-delete { background: #c62828; color: white; padding: 8px 12px; border-radius: 4px; border: none; cursor: pointer; }
+        
+        /* High-contrast highlight button (Amber/Gold on Dark Theme) */
+        .button-highlight { background: #ffb300; color: #000; box-shadow: 0 0 15px rgba(255, 179, 0, 0.3); }
+        .button-highlight:hover { filter: brightness(1.1); box-shadow: 0 0 20px rgba(255, 179, 0, 0.6); }
 
         .form-section { margin-bottom: 25px; width: 100%; }
         label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-heading); }
@@ -166,7 +170,7 @@
 
              <hr style="border-color: var(--glass-border); margin: 30px 0;">
              
-             <button class="button button-secondary" style="width: 100%;" onclick="openSubmitForm()"><i class="fas fa-file-signature"></i> Submit New Profile</button>
+             <button class="button button-highlight" style="width: 100%;" onclick="openSubmitForm()"><i class="fas fa-file-signature"></i> Submit New Profile</button>
         </div>
 
         <!-- Explorer View -->
@@ -184,7 +188,7 @@
 
              <div style="margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px;">
                  <button type="button" class="button button-back" onclick="navigateUp()">Back</button>
-                 <button type="button" class="button" onclick="openSubmitForm()">+ Add Profile Here</button>
+                 <button type="button" class="button button-highlight" onclick="openSubmitForm()">+ Add Profile Here</button>
              </div>
         </div>
 
@@ -256,7 +260,7 @@
                  </div>
 
                  <div class="form-section"> 
-                    <button type="submit" id="submit-btn" class="button" style="width: 100%;">Publish Profile</button> 
+                    <button type="submit" id="submit-btn" class="button button-highlight" style="width: 100%;">Publish Profile</button> 
                  </div>
              </form>
         </div>
@@ -319,7 +323,6 @@
         let dataTree = { profiles: [], children: {} }; 
         let isFetching = false;
         
-        // Navigation States
         let currentNavPath = []; 
         let viewingRowIndex = null;
         let currentMsgType = null;
@@ -567,10 +570,28 @@
             const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
             if(!p) return;
             
-            let pathDisplay = p.fleet + ' > ' + p.sessionType;
-            if(p.subFolder) pathDisplay += ' > ' + p.subFolder.split(' / ').map(s=>s.trim()).join(' > ');
+            // Build clickable breadcrumbs for profile view
+            let tempPath = [];
+            let bcrumbHtml = `<span onclick="goToView('menu-view', [])">Home</span>`;
             
-            document.getElementById('profile-breadcrumb').innerHTML = pathDisplay;
+            tempPath.push(p.fleet);
+            let pathCopy = JSON.stringify(tempPath);
+            bcrumbHtml += ` > <span onclick='goToView("explorer-view", ${pathCopy})'>${p.fleet}</span>`;
+            
+            tempPath.push(p.sessionType);
+            pathCopy = JSON.stringify(tempPath);
+            bcrumbHtml += ` > <span onclick='goToView("explorer-view", ${pathCopy})'>${p.sessionType}</span>`;
+            
+            if(p.subFolder) {
+                const folders = p.subFolder.split(' / ').map(s=>s.trim()).filter(s=>s);
+                folders.forEach(f => {
+                    tempPath.push(f);
+                    pathCopy = JSON.stringify(tempPath);
+                    bcrumbHtml += ` > <span onclick='goToView("explorer-view", ${pathCopy})'>${f}</span>`;
+                });
+            }
+            
+            document.getElementById('profile-breadcrumb').innerHTML = bcrumbHtml;
             document.getElementById('view-title').textContent = p.title;
             
             let dateStr = "Unknown Date";
@@ -610,7 +631,6 @@
             document.getElementById('count-down').textContent = p.downvotes;
         }
 
-        // --- EICAS / ECAM Logic ---
         function openEicasEcamList(type) {
             goToView('eicas-ecam-list-view', [], null, null, type, null);
         }
@@ -829,7 +849,7 @@
                     phaseHtml += `</select>`;
 
                     let typeHtml = `<select class="m-type flex-grow" style="min-width:120px;">
-                                        <option value="">-- Type (Standard) --</option>
+                                        <option value="">-- Not an EICAS/ECAM Event --</option>
                                         <option value="EICAS" ${m.type === 'EICAS' ? 'selected' : ''}>EICAS Message</option>
                                         <option value="ECAM" ${m.type === 'ECAM' ? 'selected' : ''}>ECAM Message</option>
                                     </select>`;
@@ -997,7 +1017,7 @@
                             </select>`;
             
             let typeHtml = `<select class="m-type flex-grow" style="min-width:120px;">
-                                <option value="">-- Type (Standard) --</option>
+                                <option value="">-- Not an EICAS/ECAM Event --</option>
                                 <option value="EICAS">EICAS Message</option>
                                 <option value="ECAM">ECAM Message</option>
                             </select>`;
@@ -1077,7 +1097,14 @@
                     document.getElementById('misc-notes').innerHTML = '';
                     updateManeuverButtons();
                     await fetchAllData();
-                    window.history.back(); 
+                    
+                    if(editingRowIndex) {
+                        let savedRow = editingRowIndex;
+                        editingRowIndex = null;
+                        goToView('profile-view', currentNavPath, savedRow);
+                    } else {
+                        window.history.back(); 
+                    }
                 } else throw new Error(res.message);
             } catch(error) { 
                 alert("Error saving: " + error.message);
