@@ -99,7 +99,10 @@
         }
         .profile-list-item:hover { border-color: var(--accent); }
 
-        .badge { display: inline-block; padding: 6px 10px; font-size: 0.85em; border-radius: 4px; background: #37474f; margin-right: 5px; margin-bottom: 5px;}
+        .badge { display: inline-block; padding: 4px 8px; font-size: 0.8em; font-weight:bold; border-radius: 4px; background: #37474f; margin-right: 5px; margin-bottom: 5px;}
+        .badge-eicas { background: #e65100; color: #fff; }
+        .badge-phase { background: var(--accent); color: #000; }
+
         .vote-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--glass-border); }
 
         .view { display: none; opacity: 0; transition: opacity 0.4s ease; }
@@ -152,7 +155,17 @@
                      Establishing connection to database...
                  </div>
              </div>
+             
              <hr style="border-color: var(--glass-border); margin: 30px 0;">
+             
+             <h2><i class="fas fa-desktop"></i> System Messages</h2>
+             <div class="flex-row" style="margin-bottom: 30px;">
+                 <button class="button button-secondary flex-grow" onclick="openEicasEcamList('EICAS')">Browse EICAS Messages</button>
+                 <button class="button button-secondary flex-grow" onclick="openEicasEcamList('ECAM')">Browse ECAM Messages</button>
+             </div>
+
+             <hr style="border-color: var(--glass-border); margin: 30px 0;">
+             
              <button class="button button-secondary" style="width: 100%;" onclick="openSubmitForm()"><i class="fas fa-file-signature"></i> Submit New Profile</button>
         </div>
 
@@ -179,7 +192,7 @@
         <div id="submit-view" class="view">
              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <h2 style="margin: 0;" id="submit-header-title">Submit Sim Profile</h2>
-                <button type="button" class="button button-back" onclick="goToView('explorer-view', currentNavPath)" style="margin: 0;">Cancel</button>
+                <button type="button" class="button button-back" onclick="window.history.back()" style="margin: 0;">Cancel</button>
              </div>
              
              <form id="entry-form">
@@ -248,6 +261,7 @@
              </form>
         </div>
 
+        <!-- Profile Detail View -->
         <div id="profile-view" class="view">
              <div class="breadcrumb" id="profile-breadcrumb"></div>
              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap: wrap; gap: 10px;">
@@ -273,7 +287,27 @@
                  <button class="button" style="background: #e65100;" onclick="submitMetric('flag')"><i class="fas fa-flag"></i> Flag Nuisance</button>
              </div>
              
-             <button type="button" class="button button-back" onclick="goToView('explorer-view', currentNavPath)" style="margin-top: 20px;">Back</button>
+             <button type="button" class="button button-back" onclick="window.history.back()" style="margin-top: 20px;">Back</button>
+        </div>
+
+        <!-- EICAS / ECAM List View -->
+        <div id="eicas-ecam-list-view" class="view">
+             <div class="breadcrumb"><span onclick="goToView('menu-view', [])">Home</span> > <span id="eicas-list-title-bc">Messages</span></div>
+             <h2 id="eicas-list-title">Database</h2>
+             <div id="eicas-list-container"></div>
+             <button type="button" class="button button-back" onclick="window.history.back()" style="margin-top: 20px;">Back</button>
+        </div>
+
+        <!-- EICAS / ECAM Detail View -->
+        <div id="eicas-ecam-detail-view" class="view">
+             <div class="breadcrumb" id="eicas-detail-bc"></div>
+             <div style="display:flex; justify-content:space-between; align-items:center;">
+                 <h2 id="eicas-detail-title" style="margin-bottom: 10px;">Message</h2>
+                 <button type="button" class="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export PDF</button>
+             </div>
+             <p style="opacity: 0.8; margin-top: 0; margin-bottom: 20px;">Consolidated Pointers across all database submissions.</p>
+             <div id="eicas-detail-container"></div>
+             <button type="button" class="button button-back" onclick="window.history.back()" style="margin-top: 20px;">Back</button>
         </div>
 
     </div> 
@@ -284,15 +318,19 @@
         let allProfiles = [];
         let dataTree = { profiles: [], children: {} }; 
         let isFetching = false;
+        
+        // Navigation States
         let currentNavPath = []; 
         let viewingRowIndex = null;
+        let currentMsgType = null;
+        let currentMsgName = null;
         
         let dynamicPathLevels = []; 
         let editingRowIndex = null; 
 
         document.addEventListener('DOMContentLoaded', async () => {
             createStars();
-            history.replaceState({ viewId: 'menu-view', navPath: [], rowIndex: null, searchTerm: null }, "", "#menu-view");
+            history.replaceState({ viewId: 'menu-view', navPath: [], rowIndex: null, searchTerm: null, msgType: null, msgName: null }, "", "#menu-view");
             await fetchAllData();
             applyState('menu-view');
         });
@@ -301,18 +339,33 @@
             if (event.state) {
                 currentNavPath = event.state.navPath || [];
                 viewingRowIndex = event.state.rowIndex || null;
+                currentMsgType = event.state.msgType || null;
+                currentMsgName = event.state.msgName || null;
                 applyState(event.state.viewId, event.state.searchTerm);
             } else {
                 currentNavPath = [];
                 viewingRowIndex = null;
+                currentMsgType = null;
+                currentMsgName = null;
                 applyState('menu-view');
             }
         });
 
-        function goToView(viewId, newPath = null, newRowIndex = null, searchTerm = null) {
+        function goToView(viewId, newPath = null, newRowIndex = null, searchTerm = null, msgType = null, msgName = null) {
             if(newPath !== null) currentNavPath = [...newPath];
             if(newRowIndex !== null) viewingRowIndex = newRowIndex;
-            history.pushState({ viewId, navPath: [...currentNavPath], rowIndex: viewingRowIndex, searchTerm }, "", `#${viewId}`);
+            if(msgType !== null) currentMsgType = msgType;
+            if(msgName !== null) currentMsgName = msgName;
+            
+            history.pushState({ 
+                viewId, 
+                navPath: [...currentNavPath], 
+                rowIndex: viewingRowIndex, 
+                searchTerm,
+                msgType: currentMsgType,
+                msgName: currentMsgName
+            }, "", `#${viewId}`);
+            
             applyState(viewId, searchTerm);
         }
 
@@ -333,6 +386,8 @@
                 else renderExplorer();
             }
             else if(viewId === 'profile-view') renderProfileData();
+            else if(viewId === 'eicas-ecam-list-view') renderEicasEcamList();
+            else if(viewId === 'eicas-ecam-detail-view') renderEicasEcamDetail();
         }
 
         function createStars() {
@@ -415,14 +470,9 @@
             if(currentNavPath.length > 0) {
                 let newPath = [...currentNavPath];
                 newPath.pop();
-                if(newPath.length === 0) {
-                    goToView('menu-view', []);
-                } else {
-                    goToView('explorer-view', newPath);
-                }
-            } else {
-                goToView('menu-view', []);
-            }
+                if(newPath.length === 0) goToView('menu-view', []);
+                else goToView('explorer-view', newPath);
+            } else goToView('menu-view', []);
         }
 
         function openNode(nodeName) {
@@ -537,15 +587,18 @@
             mContainer.innerHTML = '';
             if(p.maneuvers && p.maneuvers.length > 0) {
                 p.maneuvers.forEach((m, i) => {
-                    let ant = m.callouts.trim();
-                    let ptr = m.pointers.trim();
+                    let ant = m.callouts ? m.callouts.trim() : '';
+                    let ptr = m.pointers ? m.pointers.trim() : '';
                     
-                    let antHtml = ant ? `<p style="white-space: pre-wrap; margin-top: 5px; margin-bottom: 5px;"><strong>Anticipate:</strong><br>${ant}</p>` : '';
+                    let phaseHtml = m.phase ? `<span class="badge badge-phase">${m.phase}</span>` : '';
+                    let typeHtml = m.type ? `<span class="badge badge-eicas">${m.type}</span>` : '';
+                    let antHtml = ant ? `<p style="white-space: pre-wrap; margin-top: 10px; margin-bottom: 5px;"><strong>Anticipate:</strong><br>${ant}</p>` : '';
                     let ptrHtml = ptr ? `<p style="white-space: pre-wrap; margin-top: 5px; margin-bottom: 5px;"><strong>Pointers/Traps:</strong><br>${ptr}</p>` : '';
                     
                     mContainer.innerHTML += `
                         <div class="maneuver-block">
                             <h4 style="margin-bottom:5px; margin-top:0px;">${i+1}. ${m.name}</h4>
+                            <div style="margin-bottom: 5px;">${typeHtml} ${phaseHtml}</div>
                             ${antHtml}
                             ${ptrHtml}
                         </div>`;
@@ -555,6 +608,111 @@
             document.getElementById('view-misc').innerHTML = p.miscNotes || '';
             document.getElementById('count-up').textContent = p.upvotes;
             document.getElementById('count-down').textContent = p.downvotes;
+        }
+
+        // --- EICAS / ECAM Logic ---
+        function openEicasEcamList(type) {
+            goToView('eicas-ecam-list-view', [], null, null, type, null);
+        }
+
+        function renderEicasEcamList() {
+            const titleBc = document.getElementById('eicas-list-title-bc');
+            const titleMain = document.getElementById('eicas-list-title');
+            const container = document.getElementById('eicas-list-container');
+            
+            titleBc.textContent = `${currentMsgType} Database`;
+            titleMain.textContent = `${currentMsgType} Messages`;
+            container.innerHTML = '';
+
+            let msgMap = {};
+            allProfiles.forEach(p => {
+                if (p.maneuvers) {
+                    p.maneuvers.forEach(m => {
+                        if (m.type === currentMsgType && m.name) {
+                            let key = m.name.trim().toUpperCase();
+                            if(!msgMap[key]) msgMap[key] = 0;
+                            msgMap[key]++;
+                        }
+                    });
+                }
+            });
+
+            const keys = Object.keys(msgMap).sort();
+            if(keys.length === 0) {
+                container.innerHTML = `<p>No ${currentMsgType} messages found in the database yet.</p>`;
+                return;
+            }
+
+            let html = '<div class="folder-grid">';
+            keys.forEach(k => {
+                html += `<div class="folder-card" onclick="openEicasEcamDetail('${k}')" style="justify-content:space-between;">
+                            <span>${k}</span>
+                            <span class="badge badge-eicas" style="margin:0;">${msgMap[k]} Entries</span>
+                         </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function openEicasEcamDetail(msgName) {
+            goToView('eicas-ecam-detail-view', [], null, null, currentMsgType, msgName);
+        }
+
+        function renderEicasEcamDetail() {
+            const bc = document.getElementById('eicas-detail-bc');
+            const title = document.getElementById('eicas-detail-title');
+            const container = document.getElementById('eicas-detail-container');
+            
+            bc.innerHTML = `<span onclick="goToView('menu-view', [])">Home</span> > <span onclick="goToView('eicas-ecam-list-view', [], null, null, '${currentMsgType}', null)">${currentMsgType} Database</span> > <span>${currentMsgName}</span>`;
+            title.textContent = currentMsgName;
+            container.innerHTML = '';
+
+            let entriesFound = false;
+
+            allProfiles.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(p => {
+                if (p.maneuvers) {
+                    p.maneuvers.forEach(m => {
+                        if (m.type === currentMsgType && m.name && m.name.trim().toUpperCase() === currentMsgName) {
+                            entriesFound = true;
+                            
+                            let ant = m.callouts ? m.callouts.trim() : '';
+                            let ptr = m.pointers ? m.pointers.trim() : '';
+                            let phaseHtml = m.phase ? `<span class="badge badge-phase">${m.phase}</span>` : '';
+                            
+                            let dateStr = "Unknown Date";
+                            if(p.timestamp) {
+                                let d = isNaN(p.timestamp) ? new Date(p.timestamp) : new Date((p.timestamp - 25569) * 86400 * 1000);
+                                let day = String(d.getDate()).padStart(2, '0');
+                                let month = String(d.getMonth() + 1).padStart(2, '0');
+                                let year = String(d.getFullYear()).slice(-2);
+                                dateStr = `${day}/${month}/${year}`;
+                            }
+
+                            let antHtml = ant ? `<p style="white-space: pre-wrap; margin-top: 10px; margin-bottom: 5px;"><strong>Anticipate:</strong><br>${ant}</p>` : '';
+                            let ptrHtml = ptr ? `<p style="white-space: pre-wrap; margin-top: 5px; margin-bottom: 5px;"><strong>Pointers/Traps:</strong><br>${ptr}</p>` : '';
+
+                            container.innerHTML += `
+                                <div class="maneuver-block">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:10px;">
+                                        <div>
+                                            <span style="font-weight:bold; font-size:1.1em; color:var(--accent);">${p.fleet} > ${p.sessionType}</span><br>
+                                            <span style="opacity:0.8; font-size:0.9em;">From Profile: <a href="#" onclick="viewProfile(${p.rowIndex}); return false;" style="color:var(--text-main);">${p.title}</a></span>
+                                        </div>
+                                        <div style="text-align:right;">
+                                            ${phaseHtml}<br>
+                                            <span style="font-size:0.8em; opacity:0.6;">${dateStr}</span>
+                                        </div>
+                                    </div>
+                                    ${antHtml}
+                                    ${ptrHtml}
+                                </div>
+                            `;
+                        }
+                    });
+                }
+            });
+
+            if (!entriesFound) container.innerHTML = "<p>No entries found.</p>";
         }
 
         function updateManeuverButtons() {
@@ -656,17 +814,39 @@
 
             const mContainer = document.getElementById('maneuvers-container');
             mContainer.innerHTML = '';
-            p.maneuvers.forEach(m => {
-                const div = document.createElement('div');
-                div.className = 'maneuver-block';
-                div.innerHTML = `
-                    <button type="button" class="button-delete" onclick="this.parentElement.remove(); updateManeuverButtons();" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
-                    <input type="text" placeholder="" class="m-name" value="${m.name}" required style="margin-bottom:10px; font-weight:bold;">
-                    <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;">${m.callouts}</textarea>
-                    <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2">${m.pointers}</textarea>
-                `;
-                mContainer.appendChild(div);
-            });
+            
+            if (p.maneuvers) {
+                p.maneuvers.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'maneuver-block';
+                    
+                    let phaseOptions = ["", "Preflight", "Taxi-out", "Takeoff", "Climb", "Cruise", "Descent & Approach", "Landing", "Taxi-in", "Shutdown"];
+                    let phaseHtml = `<select class="m-phase flex-grow" style="min-width:120px;">
+                                        <option value="">-- Phase (Optional) --</option>`;
+                    phaseOptions.forEach(opt => {
+                        if(opt) phaseHtml += `<option value="${opt}" ${m.phase === opt ? 'selected' : ''}>${opt}</option>`;
+                    });
+                    phaseHtml += `</select>`;
+
+                    let typeHtml = `<select class="m-type flex-grow" style="min-width:120px;">
+                                        <option value="">-- Type (Standard) --</option>
+                                        <option value="EICAS" ${m.type === 'EICAS' ? 'selected' : ''}>EICAS Message</option>
+                                        <option value="ECAM" ${m.type === 'ECAM' ? 'selected' : ''}>ECAM Message</option>
+                                    </select>`;
+
+                    div.innerHTML = `
+                        <button type="button" class="button-delete" onclick="this.parentElement.remove(); updateManeuverButtons();" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
+                        <div class="flex-row" style="margin-bottom:10px; padding-right: 40px;">
+                            ${phaseHtml}
+                            ${typeHtml}
+                        </div>
+                        <input type="text" placeholder="" class="m-name" value="${m.name}" required style="margin-bottom:10px; font-weight:bold;">
+                        <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;">${m.callouts || ''}</textarea>
+                        <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2">${m.pointers || ''}</textarea>
+                    `;
+                    mContainer.appendChild(div);
+                });
+            }
             updateManeuverButtons();
 
             goToView('submit-view', currentNavPath);
@@ -802,8 +982,32 @@
         function addManeuver() {
             const div = document.createElement('div');
             div.className = 'maneuver-block';
+            
+            let phaseHtml = `<select class="m-phase flex-grow" style="min-width:120px;">
+                                <option value="">-- Phase (Optional) --</option>
+                                <option value="Preflight">Preflight</option>
+                                <option value="Taxi-out">Taxi-out</option>
+                                <option value="Takeoff">Takeoff</option>
+                                <option value="Climb">Climb</option>
+                                <option value="Cruise">Cruise</option>
+                                <option value="Descent & Approach">Descent & Approach</option>
+                                <option value="Landing">Landing</option>
+                                <option value="Taxi-in">Taxi-in</option>
+                                <option value="Shutdown">Shutdown</option>
+                            </select>`;
+            
+            let typeHtml = `<select class="m-type flex-grow" style="min-width:120px;">
+                                <option value="">-- Type (Standard) --</option>
+                                <option value="EICAS">EICAS Message</option>
+                                <option value="ECAM">ECAM Message</option>
+                            </select>`;
+
             div.innerHTML = `
                 <button type="button" class="button-delete" onclick="this.parentElement.remove(); updateManeuverButtons();" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
+                <div class="flex-row" style="margin-bottom:10px; padding-right: 40px;">
+                    ${phaseHtml}
+                    ${typeHtml}
+                </div>
                 <input type="text" placeholder="" class="m-name" required style="margin-bottom:10px; font-weight:bold;">
                 <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;"></textarea>
                 <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2"></textarea>
@@ -849,6 +1053,8 @@
             document.querySelectorAll('#maneuvers-container .maneuver-block').forEach(div => {
                 mList.push({
                     name: div.querySelector('.m-name').value.trim(),
+                    phase: div.querySelector('.m-phase').value,
+                    type: div.querySelector('.m-type').value,
                     callouts: div.querySelector('.m-callouts').value.trim(),
                     pointers: div.querySelector('.m-pointers').value.trim()
                 });
@@ -871,12 +1077,7 @@
                     document.getElementById('misc-notes').innerHTML = '';
                     updateManeuverButtons();
                     await fetchAllData();
-                    
-                    if(editingRowIndex) {
-                        goToView('profile-view', currentNavPath, editingRowIndex);
-                    } else {
-                        goToView('explorer-view', currentNavPath);
-                    }
+                    window.history.back(); 
                 } else throw new Error(res.message);
             } catch(error) { 
                 alert("Error saving: " + error.message);
