@@ -59,7 +59,6 @@
         .button-secondary, .button-back { background: #37474f; color: #eceff1; }
         .button-delete { background: #c62828; color: white; padding: 8px 12px; border-radius: 4px; border: none; cursor: pointer; }
         
-        /* High-contrast highlight button (Amber/Gold on Dark Theme) */
         .button-highlight { background: #ffb300; color: #000; box-shadow: 0 0 15px rgba(255, 179, 0, 0.3); }
         .button-highlight:hover { filter: brightness(1.1); box-shadow: 0 0 20px rgba(255, 179, 0, 0.6); }
 
@@ -413,13 +412,13 @@
             if (isFetching) return;
             isFetching = true;
             try {
-                const res = await fetch(WEB_APP_URL);
+                const res = await fetch(WEB_APP_URL, { redirect: 'follow' });
                 const text = await res.text(); 
                 
                 let data;
                 try { data = JSON.parse(text); } 
                 catch (parseError) {
-                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly.</div>`;
+                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly as 'Anyone'.</div>`;
                     return; 
                 }
                 
@@ -570,7 +569,6 @@
             const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
             if(!p) return;
             
-            // Build clickable breadcrumbs for profile view
             let tempPath = [];
             let bcrumbHtml = `<span onclick="goToView('menu-view', [])">Home</span>`;
             
@@ -1082,7 +1080,7 @@
             formData.append('maneuvers', JSON.stringify(mList));
 
             try {
-                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
+                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData, redirect: 'follow' });
                 const textRes = await response.text();
                 let res;
                 try {
@@ -1127,7 +1125,7 @@
             formData.append('metricType', metricType);
 
             try {
-                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
+                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData, redirect: 'follow' });
                 const res = await response.json();
                 if(res.status === 'success') {
                     if(metricType !== 'flag') {
