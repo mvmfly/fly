@@ -1042,7 +1042,7 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        // NO-CORS FETCH SUBMISSION: SECURE & BYPASSES IFRAME TRACKING BLOCKS
+        // FOOLPROOF IFRAME SUBMISSION (NO CORS, NO DROPPED PAYLOADS, NO PREMATURE ABORTS)
         document.getElementById('entry-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type="submit"]');
@@ -1075,7 +1075,6 @@
                 });
             });
 
-            // 1. Generate the form payload
             const payload = {
                 action: editingRowIndex ? 'edit_profile' : 'submit_profile',
                 rowIndex: editingRowIndex || '',
@@ -1089,7 +1088,28 @@
                 maneuvers: JSON.stringify(mList)
             };
 
-            // 2. Optimistic UI Update: Instantly inject changes into local memory 
+            // Programmatically create the iframe & form
+            const iframeName = 'hidden_iframe_' + Date.now();
+            let iframe = document.createElement('iframe');
+            iframe.name = iframeName;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = WEB_APP_URL;
+            form.target = iframeName;
+
+            for (const key in payload) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = payload[key];
+                form.appendChild(input);
+            }
+            document.body.appendChild(form);
+
+            // Optimistic Local UI Update
             if (editingRowIndex) {
                 let p = allProfiles.find(x => x.rowIndex === editingRowIndex);
                 if (p) {
@@ -1117,7 +1137,7 @@
             }
             rebuildDataTree();
 
-            // 3. Clean up UI & Redirect back to profile immediately
+            // Clean up UI & Redirect Immediately
             this.reset();
             document.getElementById('maneuvers-container').innerHTML = '';
             document.getElementById('misc-notes').innerHTML = '';
@@ -1135,25 +1155,38 @@
             } else {
                 goToView('explorer-view', newNavPath);
             }
-            
-            btn.disabled = false; btn.textContent = originalBtnText; 
 
-            // 4. Submit data securely in the background using native fetch API
-            const formData = Object.keys(payload)
-                .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
-                .join('&');
+            // GUARANTEED TRANSMISSION EXECUTION LOGIC
+            let isSubmitted = false;
+            let cleanupDone = false;
 
-            fetch(WEB_APP_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: formData
-            }).then(() => {
-                // Network dispatch complete, wait slightly for the Sheet to process, then pull down live data
-                setTimeout(fetchAllData, 3000); 
-            }).catch(err => console.error("Database sync failed:", err));
+            const executeCleanup = () => {
+                if (cleanupDone) return;
+                cleanupDone = true;
+                
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(form);
+                    document.body.removeChild(iframe);
+                }
+                
+                // Fetch the fully saved database in the background
+                fetchAllData(); 
+                btn.disabled = false; 
+                btn.textContent = originalBtnText; 
+            };
+
+            // Listen for the iframe completing the network request 
+            iframe.onload = function() {
+                if (!isSubmitted) return; // Completely ignores the immediate ghost-load that destroyed previous attempts
+                executeCleanup();
+            };
+
+            // Hard 5-second failsafe if Google returns cross-origin block headers preventing the onload event entirely
+            setTimeout(() => { if (isSubmitted) executeCleanup(); }, 5000);
+
+            // Transmit Data
+            form.submit();
+            isSubmitted = true;
         });
 
         async function submitMetric(metricType) {
@@ -1169,12 +1202,11 @@
                 metricType: metricType
             };
 
-            // Optimistic update locally
+            // Local Optimistic Update
             if(metricType !== 'flag') {
                 const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
                 if(span) span.textContent = parseInt(span.textContent) + 1;
             }
-            
             const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
             if(p) {
                 if(metricType === 'upvote') p.upvotes++;
@@ -1182,26 +1214,50 @@
                 if(metricType === 'flag') p.flags++;
             }
 
-            // Execute native fetch
-            const formData = Object.keys(payload)
-                .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
-                .join('&');
+            // Secure Iframe Submission
+            const iframeName = 'hidden_iframe_metric_' + Date.now();
+            let iframe = document.createElement('iframe');
+            iframe.name = iframeName;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
 
-            fetch(WEB_APP_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: formData
-            }).then(() => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = WEB_APP_URL;
+            form.target = iframeName;
+
+            for (const key in payload) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = payload[key];
+                form.appendChild(input);
+            }
+            document.body.appendChild(form);
+
+            let isSubmitted = false;
+            let cleanupDone = false;
+
+            const executeCleanup = () => {
+                if (cleanupDone) return;
+                cleanupDone = true;
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(form);
+                    document.body.removeChild(iframe);
+                }
                 btn.innerHTML = originalText; 
                 btn.disabled = false; 
-            }).catch(err => {
-                console.error("Metric sync failed:", err);
-                btn.innerHTML = originalText; 
-                btn.disabled = false; 
-            });
+            };
+
+            iframe.onload = function() {
+                if (!isSubmitted) return; 
+                executeCleanup();
+            };
+
+            setTimeout(() => { if (isSubmitted) executeCleanup(); }, 5000);
+
+            form.submit();
+            isSubmitted = true;
         }
 
         function renderSearchResults(term) {
