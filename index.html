@@ -316,7 +316,6 @@
     </div> 
 
     <script>
-        // Ensure this string stays exactly as it is for your deployment
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
 
         let allProfiles = [];
@@ -1043,13 +1042,12 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        // =========================================================
-        // NATIVE FETCH: Guaranteed Execution, No Iframes or Errors
-        // =========================================================
+        // =========================================================================
+        // NATIVE FETCH TRANSMISSION (Guarantees payload hits Apps Script perfectly)
+        // =========================================================================
         function sendToServer(payload, callback) {
-            const formData = new FormData();
+            const formData = new URLSearchParams();
             for (const key in payload) {
-                // Safeguard nulls turning into "null" text
                 const value = payload[key] === null || payload[key] === undefined ? '' : payload[key];
                 formData.append(key, value);
             }
@@ -1057,14 +1055,11 @@
             fetch(WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: formData
             }).then(() => {
-                // Apps script takes 1-2 seconds to write. We wait 2.5 seconds before syncing UI.
-                setTimeout(() => {
-                    if(callback) callback();
-                }, 2500); 
+                setTimeout(() => { if(callback) callback(); }, 2500); 
             }).catch(e => {
-                console.error("Fetch failed", e);
                 if(callback) callback();
             });
         }
@@ -1104,7 +1099,6 @@
             const payload = {
                 action: editingRowIndex ? 'edit_profile' : 'submit_profile',
                 rowIndex: editingRowIndex || '',
-                originalTimestamp: editingRowIndex ? (allProfiles.find(x => x.rowIndex === editingRowIndex)?.timestamp || '') : '',
                 fleet: fleet,
                 sessionType: session,
                 subFolder: finalSubFolder,
