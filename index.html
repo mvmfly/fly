@@ -140,9 +140,6 @@
 </head>
 <body>
 
-    <!-- Hidden Iframe to securely bypass CORS blocks during Save/Edit -->
-    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
-
     <div id="bg-gradient" class="bg-layer"></div>
     <div id="space-elements" class="bg-layer"><div id="stars-container"></div></div>
 
@@ -411,24 +408,41 @@
             }
         }
 
+        function rebuildDataTree() {
+            dataTree = { profiles: [], children: {} };
+            allProfiles.forEach(profile => {
+                let pathParts = [profile.fleet, profile.sessionType];
+                if (profile.subFolder) {
+                    pathParts = pathParts.concat(profile.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
+                }
+
+                let current = dataTree;
+                pathParts.forEach(part => {
+                    if (!current.children[part]) {
+                        current.children[part] = { profiles: [], children: {} };
+                    }
+                    current = current.children[part];
+                });
+                current.profiles.push(profile);
+            });
+        }
+
         async function fetchAllData() {
             if (isFetching) return;
             isFetching = true;
             try {
-                // Generates a unique timestamp parameter to completely bypass browser caching 
-                const fetchUrl = WEB_APP_URL + "?t=" + new Date().getTime();
+                const fetchUrl = WEB_APP_URL + "?t=" + new Date().getTime(); // Cache buster
                 const res = await fetch(fetchUrl, { redirect: 'follow' });
                 const text = await res.text(); 
                 
                 let data;
                 try { data = JSON.parse(text); } 
                 catch (parseError) {
-                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly as 'Anyone'.</div>`;
+                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly.</div>`;
                     return; 
                 }
                 
                 allProfiles = []; 
-                dataTree = { profiles: [], children: {} };
 
                 if(data.status === 'success' && data.values) {
                     data.values.forEach((row, index) => {
@@ -448,22 +462,9 @@
                             flags: parseInt(row[10]) || 0
                         };
                         allProfiles.push(profile);
-
-                        let pathParts = [profile.fleet, profile.sessionType];
-                        if (profile.subFolder) {
-                            pathParts = pathParts.concat(profile.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
-                        }
-
-                        let current = dataTree;
-                        pathParts.forEach(part => {
-                            if (!current.children[part]) {
-                                current.children[part] = { profiles: [], children: {} };
-                            }
-                            current = current.children[part];
-                        });
-                        current.profiles.push(profile);
                     });
                 }
+                rebuildDataTree();
             } catch(e) {
                 document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Network Error.</strong><br>Could not reach the database.</div>`;
             } finally {
@@ -1041,12 +1042,12 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        // THE SECURE IFRAME FORM SUBMISSION TO BYPASS ALL CORS ISSUES
         document.getElementById('entry-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type="submit"]');
             const originalBtnText = btn.textContent;
-            btn.disabled = true; btn.textContent = "Saving...";
+            btn.disabled = true; 
+            btn.textContent = "Saving...";
 
             let fleet = document.getElementById('submit-fleet').value;
             if(fleet === '__add_new__') fleet = document.getElementById('fleet-new').value.trim();
@@ -1073,13 +1074,6 @@
                 });
             });
 
-            // Build a hidden form to tunnel the data directly to Google via the iframe
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = WEB_APP_URL;
-            form.target = 'hidden_iframe';
-            form.style.display = 'none';
-
             const payload = {
                 action: editingRowIndex ? 'edit_profile' : 'submit_profile',
                 rowIndex: editingRowIndex || '',
@@ -1092,37 +1086,75 @@
                 maneuvers: JSON.stringify(mList)
             };
 
+            const formData = new URLSearchParams();
             for (const key in payload) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = payload[key];
-                form.appendChild(input);
+                formData.append(key, payload[key]);
             }
 
-            document.body.appendChild(form);
-            form.submit();
+            try {
+                // 1. Silent non-blocking submission to Google Sheets (Bypasses CORS completely)
+                fetch(WEB_APP_URL, { 
+                    method: 'POST', 
+                    body: formData, 
+                    mode: 'no-cors' 
+                }).catch(e => console.log('Silent POST initiated'));
 
-            // Wait 2.5 seconds for Google Apps Script to write the row, then refresh the UI
-            setTimeout(async () => {
-                document.body.removeChild(form);
+                // 2. Optimistic UI Update: Instantly change the data locally so the user sees it without waiting
+                if (editingRowIndex) {
+                    let p = allProfiles.find(x => x.rowIndex === editingRowIndex);
+                    if (p) {
+                        p.fleet = payload.fleet;
+                        p.sessionType = payload.sessionType;
+                        p.subFolder = payload.subFolder;
+                        p.title = payload.profileTitle;
+                        p.maneuvers = mList;
+                        p.miscNotes = payload.miscNotes;
+                    }
+                } else {
+                    allProfiles.push({
+                        rowIndex: Date.now(), 
+                        timestamp: new Date().toISOString(),
+                        fleet: payload.fleet,
+                        sessionType: payload.sessionType,
+                        subFolder: payload.subFolder,
+                        title: payload.profileTitle,
+                        maneuvers: mList,
+                        miscNotes: payload.miscNotes,
+                        upvotes: 0,
+                        downvotes: 0,
+                        flags: 0
+                    });
+                }
+
+                rebuildDataTree();
+
+                // 3. Clean up the UI and instantly redirect back to the profile
                 this.reset();
                 document.getElementById('maneuvers-container').innerHTML = '';
                 document.getElementById('misc-notes').innerHTML = '';
                 updateManeuverButtons();
-                
-                await fetchAllData();
-                
-                if(editingRowIndex) {
+
+                let newNavPath = [payload.fleet, payload.sessionType];
+                if (payload.subFolder) {
+                    newNavPath = newNavPath.concat(payload.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
+                }
+
+                if (editingRowIndex) {
                     let savedRow = editingRowIndex;
                     editingRowIndex = null;
-                    goToView('profile-view', currentNavPath, savedRow);
+                    goToView('profile-view', newNavPath, savedRow);
                 } else {
-                    goToView('explorer-view', currentNavPath);
+                    goToView('explorer-view', newNavPath);
+                    // Fetch real data in background to assign the true Google Row Index to the new profile
+                    setTimeout(() => fetchAllData(), 3000); 
                 }
-                
+
+            } catch(error) { 
+                alert("Error saving.");
+                console.error(error); 
+            } finally { 
                 btn.disabled = false; btn.textContent = originalBtnText; 
-            }, 2500); 
+            }
         });
 
         async function submitMetric(metricType) {
