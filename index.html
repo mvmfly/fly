@@ -140,6 +140,9 @@
 </head>
 <body>
 
+    <!-- Hidden Iframe to securely bypass CORS blocks during Save/Edit -->
+    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+
     <div id="bg-gradient" class="bg-layer"></div>
     <div id="space-elements" class="bg-layer"><div id="stars-container"></div></div>
 
@@ -412,7 +415,7 @@
             if (isFetching) return;
             isFetching = true;
             try {
-                // Add a timestamp parameter to destroy browser cache and force live data
+                // Generates a unique timestamp parameter to completely bypass browser caching 
                 const fetchUrl = WEB_APP_URL + "?t=" + new Date().getTime();
                 const res = await fetch(fetchUrl, { redirect: 'follow' });
                 const text = await res.text(); 
@@ -1038,7 +1041,8 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        document.getElementById('entry-form').addEventListener('submit', async function(e) {
+        // THE SECURE IFRAME FORM SUBMISSION TO BYPASS ALL CORS ISSUES
+        document.getElementById('entry-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type="submit"]');
             const originalBtnText = btn.textContent;
@@ -1058,17 +1062,6 @@
             }
             let finalSubFolder = finalPathArray.join(' / ');
 
-            const formData = new URLSearchParams();
-            formData.append('action', editingRowIndex ? 'edit_profile' : 'submit_profile');
-            if (editingRowIndex) formData.append('rowIndex', editingRowIndex);
-            
-            formData.append('fleet', fleet);
-            formData.append('sessionType', session);
-            formData.append('subFolder', finalSubFolder);
-            formData.append('profileTitle', document.getElementById('submit-title').value.trim());
-            formData.append('sopVersion', ""); 
-            formData.append('miscNotes', document.getElementById('misc-notes').innerHTML);
-
             const mList = [];
             document.querySelectorAll('#maneuvers-container .maneuver-block').forEach(div => {
                 mList.push({
@@ -1079,21 +1072,45 @@
                     pointers: div.querySelector('.m-pointers').value.trim()
                 });
             });
-            formData.append('maneuvers', JSON.stringify(mList));
 
-            try {
-                // Sent with 'no-cors' to entirely bypass the browser's redirect block 
-                await fetch(WEB_APP_URL, { method: 'POST', body: formData, mode: 'no-cors' });
-                
-                // Allow Google's backend a brief moment to finish overwriting the cells
-                await new Promise(r => setTimeout(r, 1500));
-                
+            // Build a hidden form to tunnel the data directly to Google via the iframe
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = WEB_APP_URL;
+            form.target = 'hidden_iframe';
+            form.style.display = 'none';
+
+            const payload = {
+                action: editingRowIndex ? 'edit_profile' : 'submit_profile',
+                rowIndex: editingRowIndex || '',
+                fleet: fleet,
+                sessionType: session,
+                subFolder: finalSubFolder,
+                profileTitle: document.getElementById('submit-title').value.trim(),
+                sopVersion: "", 
+                miscNotes: document.getElementById('misc-notes').innerHTML,
+                maneuvers: JSON.stringify(mList)
+            };
+
+            for (const key in payload) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = payload[key];
+                form.appendChild(input);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+
+            // Wait 2.5 seconds for Google Apps Script to write the row, then refresh the UI
+            setTimeout(async () => {
+                document.body.removeChild(form);
                 this.reset();
                 document.getElementById('maneuvers-container').innerHTML = '';
                 document.getElementById('misc-notes').innerHTML = '';
                 updateManeuverButtons();
                 
-                // Fetch the live spreadsheet, NOT the cache
                 await fetchAllData();
                 
                 if(editingRowIndex) {
@@ -1103,12 +1120,9 @@
                 } else {
                     goToView('explorer-view', currentNavPath);
                 }
-            } catch(error) { 
-                alert("Network error saving profile.");
-                console.error(error); 
-            } finally { 
+                
                 btn.disabled = false; btn.textContent = originalBtnText; 
-            }
+            }, 2500); 
         });
 
         async function submitMetric(metricType) {
