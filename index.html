@@ -430,7 +430,7 @@
                         if (parseInt(row[10]) >= 3) return; 
                         
                         const profile = {
-                            rowIndex: index + 2, 
+                            rowIndex: row[12] ? parseInt(row[12]) : (index + 2), 
                             timestamp: row[0],
                             fleet: row[1] || 'Unknown Fleet',
                             sessionType: row[2] || 'General',
@@ -707,7 +707,7 @@
                             }
 
                             let antHtml = ant ? `<p style="white-space: pre-wrap; margin-top: 10px; margin-bottom: 5px;"><strong>Anticipate:</strong><br>${ant}</p>` : '';
-                            let ptrHtml = ptr ? `<p style="white-space: pre-wrap; margin-top: 5px; margin-bottom: 5px;"><strong>Pointers/Traps:</strong><br>${ptr}</p>` : '';
+                            let ptrHtml = ptr ? `<p style="white-space: pre-wrap; margin-top: 10px; margin-bottom: 5px;"><strong>Pointers/Traps:</strong><br>${ptr}</p>` : '';
 
                             container.innerHTML += `
                                 <div class="maneuver-block">
@@ -1056,17 +1056,6 @@
             }
             let finalSubFolder = finalPathArray.join(' / ');
 
-            const formData = new URLSearchParams();
-            formData.append('action', editingRowIndex ? 'edit_profile' : 'submit_profile');
-            if (editingRowIndex) formData.append('rowIndex', editingRowIndex);
-            
-            formData.append('fleet', fleet);
-            formData.append('sessionType', session);
-            formData.append('subFolder', finalSubFolder);
-            formData.append('profileTitle', document.getElementById('submit-title').value.trim());
-            formData.append('sopVersion', ""); 
-            formData.append('miscNotes', document.getElementById('misc-notes').innerHTML);
-
             const mList = [];
             document.querySelectorAll('#maneuvers-container .maneuver-block').forEach(div => {
                 mList.push({
@@ -1077,16 +1066,32 @@
                     pointers: div.querySelector('.m-pointers').value.trim()
                 });
             });
-            formData.append('maneuvers', JSON.stringify(mList));
+
+            const payload = {
+                action: editingRowIndex ? 'edit_profile' : 'submit_profile',
+                rowIndex: editingRowIndex || '',
+                fleet: fleet,
+                sessionType: session,
+                subFolder: finalSubFolder,
+                profileTitle: document.getElementById('submit-title').value.trim(),
+                sopVersion: "", 
+                miscNotes: document.getElementById('misc-notes').innerHTML,
+                maneuvers: JSON.stringify(mList)
+            };
 
             try {
-                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData, redirect: 'follow' });
+                const response = await fetch(WEB_APP_URL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    redirect: 'follow' 
+                });
                 const textRes = await response.text();
                 let res;
                 try {
                     res = JSON.parse(textRes);
                 } catch(e) {
-                    throw new Error("Backend did not return valid data. Please ensure Google Apps Script is updated and deployed as 'New Version'.\n\nResponse received: " + textRes.substring(0, 100));
+                    throw new Error("Backend did not return valid JSON. Ensure Google Apps Script is updated and deployed as 'New Version'.");
                 }
                 
                 if(res.status === 'success') {
@@ -1103,7 +1108,7 @@
                     } else {
                         window.history.back(); 
                     }
-                } else throw new Error(res.message);
+                } else throw new Error(res.message || "Save operation failed.");
             } catch(error) { 
                 alert("Error saving: " + error.message);
                 console.error(error); 
@@ -1119,13 +1124,19 @@
             btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i>";
             btn.disabled = true;
 
-            const formData = new URLSearchParams();
-            formData.append('action', 'update_metric');
-            formData.append('rowIndex', viewingRowIndex);
-            formData.append('metricType', metricType);
+            const payload = {
+                action: 'update_metric',
+                rowIndex: viewingRowIndex,
+                metricType: metricType
+            };
 
             try {
-                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData, redirect: 'follow' });
+                const response = await fetch(WEB_APP_URL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    redirect: 'follow' 
+                });
                 const res = await response.json();
                 if(res.status === 'success') {
                     if(metricType !== 'flag') {
