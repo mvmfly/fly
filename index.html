@@ -1042,14 +1042,16 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        // ==========================================
-        // UNIFIED BULLETPROOF SUBMISSION PROTOCOL 
-        // ==========================================
+        // =========================================================================
+        // THE PERSISTENT IFRAME PROTOCOL (Bypasses Google's Multi-Account Cookie Bug)
+        // =========================================================================
         function sendToServer(payload, callback) {
             const iframeName = 'hidden_iframe_' + Date.now();
             const iframe = document.createElement('iframe');
             iframe.name = iframeName;
             iframe.style.display = 'none';
+            // CRITICAL FIX: The iframe is permanently appended to the DOM.
+            // Deleting an iframe instantly kills the HTTP POST request it was running.
             document.body.appendChild(iframe);
 
             const form = document.createElement('form');
@@ -1061,19 +1063,17 @@
                 const input = document.createElement('input');
                 input.type = 'hidden';
                 input.name = key;
-                // Never pass literal undefined or null arrays into the POST block
                 input.value = payload[key] === null || payload[key] === undefined ? '' : payload[key];
                 form.appendChild(input);
             }
             document.body.appendChild(form);
             form.submit();
 
-            // Give the Google Servers exactly 3.5 seconds to flush the sheet
+            // Give the Google Servers exactly 3 seconds to flush the sheet, then execute the callback
             setTimeout(() => {
                 if(document.body.contains(form)) document.body.removeChild(form);
-                if(document.body.contains(iframe)) document.body.removeChild(iframe);
                 if(callback) callback();
-            }, 3500);
+            }, 3000);
         }
 
         document.getElementById('entry-form').addEventListener('submit', function(e) {
