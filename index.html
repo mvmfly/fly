@@ -1042,29 +1042,38 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        // GUARANTEED TRANSMISSION: OLD-SCHOOL XHR WITH NATIVE FORM ENCODING
-        function sendGuaranteedRequest(payload, onSuccess) {
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", WEB_APP_URL, true);
-            // This header perfectly mimics an HTML form submit. Google reads it natively without fail.
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-            
-            // Build the string explicitly
-            const urlEncodedDataPairs = [];
-            for (const [name, value] of Object.entries(payload)) {
-                urlEncodedDataPairs.push(encodeURIComponent(name) + '=' + encodeURIComponent(value));
+        // ==========================================
+        // UNIFIED BULLETPROOF SUBMISSION PROTOCOL 
+        // ==========================================
+        function sendToServer(payload, callback) {
+            const iframeName = 'hidden_iframe_' + Date.now();
+            const iframe = document.createElement('iframe');
+            iframe.name = iframeName;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = WEB_APP_URL;
+            form.target = iframeName;
+
+            for (const key in payload) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                // Never pass literal undefined or null arrays into the POST block
+                input.value = payload[key] === null || payload[key] === undefined ? '' : payload[key];
+                form.appendChild(input);
             }
-            const encodedData = urlEncodedDataPairs.join('&').replace(/%20/g, '+');
-            
-            xhr.onload = function() {
-                if(onSuccess) onSuccess();
-            };
-            xhr.onerror = function() {
-                // Ignore CORS blocks on the redirect response; the initial POST executed.
-                if(onSuccess) onSuccess(); 
-            };
-            
-            xhr.send(encodedData);
+            document.body.appendChild(form);
+            form.submit();
+
+            // Give the Google Servers exactly 3.5 seconds to flush the sheet
+            setTimeout(() => {
+                if(document.body.contains(form)) document.body.removeChild(form);
+                if(document.body.contains(iframe)) document.body.removeChild(iframe);
+                if(callback) callback();
+            }, 3500);
         }
 
         document.getElementById('entry-form').addEventListener('submit', function(e) {
@@ -1112,17 +1121,7 @@
                 maneuvers: JSON.stringify(mList)
             };
 
-            // Transmit immediately
-            sendGuaranteedRequest(payload, () => {
-                // Wait 3 seconds for Google Sheets write latency before pulling fresh data
-                setTimeout(() => {
-                    fetchAllData();
-                    btn.disabled = false; 
-                    btn.textContent = originalBtnText; 
-                }, 3000);
-            });
-
-            // Optimistic Local UI Update
+            // OPTIMISTIC UI UPDATE
             if (editingRowIndex) {
                 let p = allProfiles.find(x => x.rowIndex === editingRowIndex);
                 if (p) {
@@ -1150,24 +1149,30 @@
             }
             rebuildDataTree();
 
-            // Clean up UI & Redirect Immediately
-            this.reset();
-            document.getElementById('maneuvers-container').innerHTML = '';
-            document.getElementById('misc-notes').innerHTML = '';
-            updateManeuverButtons();
+            // SEND AND SYNC
+            sendToServer(payload, () => {
+                this.reset();
+                document.getElementById('maneuvers-container').innerHTML = '';
+                document.getElementById('misc-notes').innerHTML = '';
+                updateManeuverButtons();
 
-            let newNavPath = [payload.fleet, payload.sessionType];
-            if (payload.subFolder) {
-                newNavPath = newNavPath.concat(payload.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
-            }
+                let newNavPath = [payload.fleet, payload.sessionType];
+                if (payload.subFolder) {
+                    newNavPath = newNavPath.concat(payload.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
+                }
 
-            if (editingRowIndex) {
-                let savedRow = editingRowIndex;
-                editingRowIndex = null;
-                goToView('profile-view', newNavPath, savedRow);
-            } else {
-                goToView('explorer-view', newNavPath);
-            }
+                if (editingRowIndex) {
+                    let savedRow = editingRowIndex;
+                    editingRowIndex = null;
+                    goToView('profile-view', newNavPath, savedRow);
+                } else {
+                    goToView('explorer-view', newNavPath);
+                }
+
+                fetchAllData();
+                btn.disabled = false; 
+                btn.textContent = originalBtnText; 
+            });
         });
 
         async function submitMetric(metricType) {
@@ -1183,11 +1188,11 @@
                 metricType: metricType
             };
 
-            // Local Optimistic Update
             if(metricType !== 'flag') {
                 const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
                 if(span) span.textContent = parseInt(span.textContent) + 1;
             }
+            
             const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
             if(p) {
                 if(metricType === 'upvote') p.upvotes++;
@@ -1195,11 +1200,9 @@
                 if(metricType === 'flag') p.flags++;
             }
 
-            sendGuaranteedRequest(payload, () => {
-                setTimeout(() => {
-                    btn.innerHTML = originalText; 
-                    btn.disabled = false; 
-                }, 2000);
+            sendToServer(payload, () => {
+                btn.innerHTML = originalText; 
+                btn.disabled = false; 
             });
         }
 
