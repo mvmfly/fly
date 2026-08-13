@@ -102,7 +102,7 @@
         }
         .profile-list-item:hover { border-color: var(--accent); }
 
-        .badge { display: inline-block; padding: 4px 8px; font-size: 0.8em; font-weight:bold; border-radius: 4px; background: #37474f; margin-right: 5px; margin-bottom: 5px;}
+        .badge { display: inline-block; padding: 6px 10px; font-size: 0.85em; font-weight:bold; border-radius: 4px; background: #37474f; margin-right: 5px; margin-bottom: 5px;}
         .badge-eicas { background: #e65100; color: #fff; }
         .badge-phase { background: var(--accent); color: #000; }
 
@@ -304,8 +304,8 @@
         <!-- EICAS / ECAM Detail View -->
         <div id="eicas-ecam-detail-view" class="view">
              <div class="breadcrumb" id="eicas-detail-bc"></div>
-             <div style="display:flex; justify-content:space-between; align-items:center;">
-                 <h2 id="eicas-detail-title" style="margin-bottom: 10px;">Message</h2>
+             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
+                 <h2 id="eicas-detail-title" style="margin-bottom: 10px; width: 100%;">Message</h2>
                  <button type="button" class="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export PDF</button>
              </div>
              <p style="opacity: 0.8; margin-top: 0; margin-bottom: 20px;">Consolidated Pointers across all database submissions.</p>
@@ -430,7 +430,8 @@
                         if (parseInt(row[10]) >= 3) return; 
                         
                         const profile = {
-                            rowIndex: index + 2, 
+                            // Uses the absolute spreadsheet row index passed by Apps Script to prevent overwrite bugs
+                            rowIndex: row[12] ? parseInt(row[12]) : (index + 2), 
                             timestamp: row[0],
                             fleet: row[1] || 'Unknown Fleet',
                             sessionType: row[2] || 'General',
@@ -839,14 +840,14 @@
                     div.className = 'maneuver-block';
                     
                     let phaseOptions = ["", "Preflight", "Taxi-out", "Takeoff", "Climb", "Cruise", "Descent & Approach", "Landing", "Taxi-in", "Shutdown"];
-                    let phaseHtml = `<select class="m-phase flex-grow" style="min-width:120px;">
+                    let phaseHtml = `<select class="m-phase flex-grow" style="min-width:120px; padding:8px; margin-bottom:10px;">
                                         <option value="">-- Phase (Optional) --</option>`;
                     phaseOptions.forEach(opt => {
                         if(opt) phaseHtml += `<option value="${opt}" ${m.phase === opt ? 'selected' : ''}>${opt}</option>`;
                     });
                     phaseHtml += `</select>`;
 
-                    let typeHtml = `<select class="m-type flex-grow" style="min-width:120px;">
+                    let typeHtml = `<select class="m-type flex-grow" style="min-width:120px; padding:8px; margin-bottom:10px;">
                                         <option value="">-- Not an EICAS/ECAM Event --</option>
                                         <option value="EICAS" ${m.type === 'EICAS' ? 'selected' : ''}>EICAS Message</option>
                                         <option value="ECAM" ${m.type === 'ECAM' ? 'selected' : ''}>ECAM Message</option>
@@ -854,11 +855,11 @@
 
                     div.innerHTML = `
                         <button type="button" class="button-delete" onclick="this.parentElement.remove(); updateManeuverButtons();" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
-                        <div class="flex-row" style="margin-bottom:10px; padding-right: 40px;">
+                        <div class="flex-row" style="margin-bottom:5px; padding-right: 40px;">
                             ${phaseHtml}
                             ${typeHtml}
                         </div>
-                        <input type="text" placeholder="" class="m-name" value="${m.name}" required style="margin-bottom:10px; font-weight:bold;">
+                        <input type="text" placeholder="Manoeuvre / Condition Name" class="m-name" value="${m.name}" required style="margin-bottom:10px; font-weight:bold;">
                         <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;">${m.callouts || ''}</textarea>
                         <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2">${m.pointers || ''}</textarea>
                     `;
@@ -1001,7 +1002,7 @@
             const div = document.createElement('div');
             div.className = 'maneuver-block';
             
-            let phaseHtml = `<select class="m-phase flex-grow" style="min-width:120px;">
+            let phaseHtml = `<select class="m-phase flex-grow" style="min-width:120px; padding:8px; margin-bottom:10px;">
                                 <option value="">-- Phase (Optional) --</option>
                                 <option value="Preflight">Preflight</option>
                                 <option value="Taxi-out">Taxi-out</option>
@@ -1014,7 +1015,7 @@
                                 <option value="Shutdown">Shutdown</option>
                             </select>`;
             
-            let typeHtml = `<select class="m-type flex-grow" style="min-width:120px;">
+            let typeHtml = `<select class="m-type flex-grow" style="min-width:120px; padding:8px; margin-bottom:10px;">
                                 <option value="">-- Not an EICAS/ECAM Event --</option>
                                 <option value="EICAS">EICAS Message</option>
                                 <option value="ECAM">ECAM Message</option>
@@ -1022,11 +1023,11 @@
 
             div.innerHTML = `
                 <button type="button" class="button-delete" onclick="this.parentElement.remove(); updateManeuverButtons();" style="position:absolute; right:10px; top:10px;"><i class="fas fa-times"></i></button>
-                <div class="flex-row" style="margin-bottom:10px; padding-right: 40px;">
+                <div class="flex-row" style="margin-bottom:5px; padding-right: 40px;">
                     ${phaseHtml}
                     ${typeHtml}
                 </div>
-                <input type="text" placeholder="" class="m-name" required style="margin-bottom:10px; font-weight:bold;">
+                <input type="text" placeholder="Manoeuvre / Condition Name" class="m-name" required style="margin-bottom:10px; font-weight:bold;">
                 <textarea placeholder="Anticipate..." class="m-callouts" rows="2" style="margin-bottom:10px;"></textarea>
                 <textarea placeholder="Pointers/Traps..." class="m-pointers" rows="2"></textarea>
             `;
@@ -1079,24 +1080,18 @@
             });
             formData.append('maneuvers', JSON.stringify(mList));
 
-            let res;
             try {
-                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
-                res = await response.json();
-            } catch(error) { 
-                console.warn("CORS/Redirect blocked by browser. Using opaque fallback.", error);
-                try {
-                    // OPAQUE FALLBACK: Bypasses strict browser CORS blocks entirely
-                    await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: formData });
-                    res = { status: 'success' };
-                } catch (fallbackError) {
-                    alert("Network Offline. Unable to reach database.");
-                    btn.disabled = false; btn.textContent = originalBtnText; 
-                    return;
-                }
-            }
-
-            if(res && res.status === 'success') {
+                // The 'no-cors' parameter creates an Opaque request. This physically prevents 
+                // the browser from blocking the Google Apps Script HTTP 302 redirect.
+                await fetch(WEB_APP_URL, { 
+                    method: 'POST', 
+                    body: formData,
+                    mode: 'no-cors' 
+                });
+                
+                // Allow GAS to write to the spreadsheet before we pull the updated data
+                await new Promise(r => setTimeout(r, 1000));
+                
                 this.reset();
                 document.getElementById('maneuvers-container').innerHTML = '';
                 document.getElementById('misc-notes').innerHTML = '';
@@ -1110,9 +1105,11 @@
                 } else {
                     goToView('explorer-view', currentNavPath);
                 }
-            } else {
-                alert("Server error: " + (res ? res.message : "Unknown error"));
-                btn.disabled = false; btn.textContent = originalBtnText;
+            } catch(error) { 
+                alert("Network error: Unable to connect to the database.");
+                console.error(error); 
+            } finally { 
+                btn.disabled = false; btn.textContent = originalBtnText; 
             }
         });
 
@@ -1129,24 +1126,11 @@
             formData.append('metricType', metricType);
 
             try {
-                const response = await fetch(WEB_APP_URL, { method: 'POST', body: formData });
-                const res = await response.json();
-                
-                if(res.status === 'success') {
-                    if(metricType !== 'flag') {
-                        const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
-                        if(span) span.textContent = res.newValue;
-                    }
-                    const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
-                    if(p) {
-                        if(metricType==='upvote') p.upvotes = res.newValue;
-                        if(metricType==='downvote') p.downvotes = res.newValue;
-                        if(metricType==='flag') p.flags = res.newValue;
-                    }
-                }
-            } catch(e) { 
-                console.warn("CORS block detected on vote. Falling back to opaque request.");
-                await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: formData });
+                await fetch(WEB_APP_URL, { 
+                    method: 'POST', 
+                    body: formData,
+                    mode: 'no-cors'
+                });
                 
                 if(metricType !== 'flag') {
                     const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
@@ -1158,6 +1142,8 @@
                     if(metricType==='downvote') p.downvotes++;
                     if(metricType==='flag') p.flags++;
                 }
+            } catch(e) { 
+                console.error("Metric submission error:", e); 
             } finally { 
                 btn.innerHTML = originalText; btn.disabled = false; 
             }
