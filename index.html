@@ -431,14 +431,14 @@
             if (isFetching) return;
             isFetching = true;
             try {
-                const fetchUrl = WEB_APP_URL + "?t=" + new Date().getTime(); // Cache buster
+                const fetchUrl = WEB_APP_URL + "?t=" + new Date().getTime();
                 const res = await fetch(fetchUrl, { redirect: 'follow' });
                 const text = await res.text(); 
                 
                 let data;
                 try { data = JSON.parse(text); } 
                 catch (parseError) {
-                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly.</div>`;
+                    document.getElementById('fleet-grid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; background: rgba(198, 40, 40, 0.2); border: 1px solid #c62828; border-radius: 4px;"><strong>Connection Refused.</strong><br>Ensure your Google Apps Script is deployed properly as 'Anyone'.</div>`;
                     return; 
                 }
                 
@@ -1042,6 +1042,7 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
+        // INVISIBLE IFRAME SUBMISSION: 100% IMMUNE TO CORS BLOCKS
         document.getElementById('entry-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type="submit"]');
@@ -1074,9 +1075,11 @@
                 });
             });
 
+            // 1. Generate the form payload
             const payload = {
                 action: editingRowIndex ? 'edit_profile' : 'submit_profile',
                 rowIndex: editingRowIndex || '',
+                originalTimestamp: editingRowIndex ? (allProfiles.find(x => x.rowIndex === editingRowIndex)?.timestamp || '') : '',
                 fleet: fleet,
                 sessionType: session,
                 subFolder: finalSubFolder,
@@ -1086,75 +1089,85 @@
                 maneuvers: JSON.stringify(mList)
             };
 
-            const formData = new URLSearchParams();
+            // 2. Programmatically create an invisible Iframe & Form
+            const iframeName = 'hidden_iframe_' + Date.now();
+            let iframe = document.createElement('iframe');
+            iframe.name = iframeName;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = WEB_APP_URL;
+            form.target = iframeName;
+
             for (const key in payload) {
-                formData.append(key, payload[key]);
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = payload[key];
+                form.appendChild(input);
+            }
+            
+            // 3. Submit data instantly and silently to Google Apps Script
+            document.body.appendChild(form);
+            form.submit();
+
+            // 4. Optimistic UI Update: Instantly inject changes into local memory 
+            if (editingRowIndex) {
+                let p = allProfiles.find(x => x.rowIndex === editingRowIndex);
+                if (p) {
+                    p.fleet = payload.fleet;
+                    p.sessionType = payload.sessionType;
+                    p.subFolder = payload.subFolder;
+                    p.title = payload.profileTitle;
+                    p.maneuvers = mList;
+                    p.miscNotes = payload.miscNotes;
+                }
+            } else {
+                allProfiles.push({
+                    rowIndex: Date.now(), 
+                    timestamp: new Date().toISOString(),
+                    fleet: payload.fleet,
+                    sessionType: payload.sessionType,
+                    subFolder: payload.subFolder,
+                    title: payload.profileTitle,
+                    maneuvers: mList,
+                    miscNotes: payload.miscNotes,
+                    upvotes: 0,
+                    downvotes: 0,
+                    flags: 0
+                });
+            }
+            rebuildDataTree();
+
+            // 5. Clean up UI & Redirect back to profile immediately
+            this.reset();
+            document.getElementById('maneuvers-container').innerHTML = '';
+            document.getElementById('misc-notes').innerHTML = '';
+            updateManeuverButtons();
+
+            let newNavPath = [payload.fleet, payload.sessionType];
+            if (payload.subFolder) {
+                newNavPath = newNavPath.concat(payload.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
             }
 
-            try {
-                // 1. Silent non-blocking submission to Google Sheets (Bypasses CORS completely)
-                fetch(WEB_APP_URL, { 
-                    method: 'POST', 
-                    body: formData, 
-                    mode: 'no-cors' 
-                }).catch(e => console.log('Silent POST initiated'));
-
-                // 2. Optimistic UI Update: Instantly change the data locally so the user sees it without waiting
-                if (editingRowIndex) {
-                    let p = allProfiles.find(x => x.rowIndex === editingRowIndex);
-                    if (p) {
-                        p.fleet = payload.fleet;
-                        p.sessionType = payload.sessionType;
-                        p.subFolder = payload.subFolder;
-                        p.title = payload.profileTitle;
-                        p.maneuvers = mList;
-                        p.miscNotes = payload.miscNotes;
-                    }
-                } else {
-                    allProfiles.push({
-                        rowIndex: Date.now(), 
-                        timestamp: new Date().toISOString(),
-                        fleet: payload.fleet,
-                        sessionType: payload.sessionType,
-                        subFolder: payload.subFolder,
-                        title: payload.profileTitle,
-                        maneuvers: mList,
-                        miscNotes: payload.miscNotes,
-                        upvotes: 0,
-                        downvotes: 0,
-                        flags: 0
-                    });
-                }
-
-                rebuildDataTree();
-
-                // 3. Clean up the UI and instantly redirect back to the profile
-                this.reset();
-                document.getElementById('maneuvers-container').innerHTML = '';
-                document.getElementById('misc-notes').innerHTML = '';
-                updateManeuverButtons();
-
-                let newNavPath = [payload.fleet, payload.sessionType];
-                if (payload.subFolder) {
-                    newNavPath = newNavPath.concat(payload.subFolder.split(' / ').map(s => s.trim()).filter(s => s));
-                }
-
-                if (editingRowIndex) {
-                    let savedRow = editingRowIndex;
-                    editingRowIndex = null;
-                    goToView('profile-view', newNavPath, savedRow);
-                } else {
-                    goToView('explorer-view', newNavPath);
-                    // Fetch real data in background to assign the true Google Row Index to the new profile
-                    setTimeout(() => fetchAllData(), 3000); 
-                }
-
-            } catch(error) { 
-                alert("Error saving.");
-                console.error(error); 
-            } finally { 
-                btn.disabled = false; btn.textContent = originalBtnText; 
+            if (editingRowIndex) {
+                let savedRow = editingRowIndex;
+                editingRowIndex = null;
+                goToView('profile-view', newNavPath, savedRow);
+            } else {
+                goToView('explorer-view', newNavPath);
             }
+            
+            btn.disabled = false; btn.textContent = originalBtnText; 
+
+            // 6. Clean up DOM memory and fetch true live data in the background
+            setTimeout(() => {
+                document.body.removeChild(form);
+                document.body.removeChild(iframe);
+                fetchAllData(); 
+            }, 3500);
         });
 
         async function submitMetric(metricType) {
@@ -1164,29 +1177,51 @@
             btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i>";
             btn.disabled = true;
 
-            const formData = new URLSearchParams();
-            formData.append('action', 'update_metric');
-            formData.append('rowIndex', viewingRowIndex);
-            formData.append('metricType', metricType);
+            const payload = {
+                action: 'update_metric',
+                rowIndex: viewingRowIndex,
+                metricType: metricType
+            };
 
-            try {
-                await fetch(WEB_APP_URL, { method: 'POST', body: formData, mode: 'no-cors' });
-                
-                if(metricType !== 'flag') {
-                    const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
-                    if(span) span.textContent = parseInt(span.textContent) + 1;
-                }
-                const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
-                if(p) {
-                    if(metricType==='upvote') p.upvotes++;
-                    if(metricType==='downvote') p.downvotes++;
-                    if(metricType==='flag') p.flags++;
-                }
-            } catch(e) { 
-                console.error("Metric submission error:", e); 
-            } finally { 
-                btn.innerHTML = originalText; btn.disabled = false; 
+            const iframeName = 'hidden_iframe_metric_' + Date.now();
+            let iframe = document.createElement('iframe');
+            iframe.name = iframeName;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = WEB_APP_URL;
+            form.target = iframeName;
+
+            for (const key in payload) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = payload[key];
+                form.appendChild(input);
             }
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            if(metricType !== 'flag') {
+                const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
+                if(span) span.textContent = parseInt(span.textContent) + 1;
+            }
+            const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
+            if(p) {
+                if(metricType==='upvote') p.upvotes++;
+                if(metricType==='downvote') p.downvotes++;
+                if(metricType==='flag') p.flags++;
+            }
+            
+            setTimeout(() => {
+                document.body.removeChild(form);
+                document.body.removeChild(iframe);
+                btn.innerHTML = originalText; 
+                btn.disabled = false; 
+            }, 2000);
         }
 
         function renderSearchResults(term) {
