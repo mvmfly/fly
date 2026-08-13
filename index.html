@@ -1042,7 +1042,7 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        // INVISIBLE IFRAME SUBMISSION: 100% IMMUNE TO CORS BLOCKS
+        // NO-CORS FETCH SUBMISSION: SECURE & BYPASSES IFRAME TRACKING BLOCKS
         document.getElementById('entry-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type="submit"]');
@@ -1089,31 +1089,7 @@
                 maneuvers: JSON.stringify(mList)
             };
 
-            // 2. Programmatically create an invisible Iframe & Form
-            const iframeName = 'hidden_iframe_' + Date.now();
-            let iframe = document.createElement('iframe');
-            iframe.name = iframeName;
-            iframe.style.display = 'none';
-            document.body.appendChild(iframe);
-
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = WEB_APP_URL;
-            form.target = iframeName;
-
-            for (const key in payload) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = payload[key];
-                form.appendChild(input);
-            }
-            
-            // 3. Submit data instantly and silently to Google Apps Script
-            document.body.appendChild(form);
-            form.submit();
-
-            // 4. Optimistic UI Update: Instantly inject changes into local memory 
+            // 2. Optimistic UI Update: Instantly inject changes into local memory 
             if (editingRowIndex) {
                 let p = allProfiles.find(x => x.rowIndex === editingRowIndex);
                 if (p) {
@@ -1141,7 +1117,7 @@
             }
             rebuildDataTree();
 
-            // 5. Clean up UI & Redirect back to profile immediately
+            // 3. Clean up UI & Redirect back to profile immediately
             this.reset();
             document.getElementById('maneuvers-container').innerHTML = '';
             document.getElementById('misc-notes').innerHTML = '';
@@ -1162,18 +1138,22 @@
             
             btn.disabled = false; btn.textContent = originalBtnText; 
 
-            // 6. FIX: Wait until the Iframe physically loads the success response before running garbage collection.
-            // If the iframe is removed during processing, the browser aborts the HTTP POST and the database update completely fails.
-            const handleFormCleanup = () => {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(form);
-                    document.body.removeChild(iframe);
-                    fetchAllData(); 
-                }
-            };
-            
-            iframe.onload = handleFormCleanup;
-            setTimeout(handleFormCleanup, 12000); // 12s failsafe timeout fallback
+            // 4. Submit data securely in the background using native fetch API
+            const formData = Object.keys(payload)
+                .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
+                .join('&');
+
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: formData
+            }).then(() => {
+                // Network dispatch complete, wait slightly for the Sheet to process, then pull down live data
+                setTimeout(fetchAllData, 3000); 
+            }).catch(err => console.error("Database sync failed:", err));
         });
 
         async function submitMetric(metricType) {
@@ -1189,51 +1169,39 @@
                 metricType: metricType
             };
 
-            const iframeName = 'hidden_iframe_metric_' + Date.now();
-            let iframe = document.createElement('iframe');
-            iframe.name = iframeName;
-            iframe.style.display = 'none';
-            document.body.appendChild(iframe);
-
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = WEB_APP_URL;
-            form.target = iframeName;
-
-            for (const key in payload) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = payload[key];
-                form.appendChild(input);
-            }
-            
-            document.body.appendChild(form);
-            form.submit();
-            
+            // Optimistic update locally
             if(metricType !== 'flag') {
                 const span = document.getElementById(metricType === 'upvote' ? 'count-up' : 'count-down');
                 if(span) span.textContent = parseInt(span.textContent) + 1;
             }
+            
             const p = allProfiles.find(x => x.rowIndex === viewingRowIndex);
             if(p) {
-                if(metricType==='upvote') p.upvotes++;
-                if(metricType==='downvote') p.downvotes++;
-                if(metricType==='flag') p.flags++;
+                if(metricType === 'upvote') p.upvotes++;
+                if(metricType === 'downvote') p.downvotes++;
+                if(metricType === 'flag') p.flags++;
             }
-            
-            // FIX: Rely on the server response to finish, rather than a tiny arbitrary timer.
-            const handleMetricCleanup = () => {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(form);
-                    document.body.removeChild(iframe);
-                    btn.innerHTML = originalText; 
-                    btn.disabled = false; 
-                }
-            };
-            
-            iframe.onload = handleMetricCleanup;
-            setTimeout(handleMetricCleanup, 12000); // 12s failsafe timeout fallback
+
+            // Execute native fetch
+            const formData = Object.keys(payload)
+                .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
+                .join('&');
+
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: formData
+            }).then(() => {
+                btn.innerHTML = originalText; 
+                btn.disabled = false; 
+            }).catch(err => {
+                console.error("Metric sync failed:", err);
+                btn.innerHTML = originalText; 
+                btn.disabled = false; 
+            });
         }
 
         function renderSearchResults(term) {
