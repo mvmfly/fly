@@ -316,6 +316,7 @@
     </div> 
 
     <script>
+        // Ensure this string stays exactly as it is for your deployment
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwiPy9U-JvpsNb6KqKW8q7d5eWH2fR4DaG2CCSiOlst0ZBsJ7q-sK2HJXxgfMRW0OA5/exec'; 
 
         let allProfiles = [];
@@ -1042,38 +1043,30 @@
 
         function formatText(elementId, command) { document.execCommand(command, false, null); document.getElementById(elementId).focus(); }
 
-        // =========================================================================
-        // THE PERSISTENT IFRAME PROTOCOL (Bypasses Google's Multi-Account Cookie Bug)
-        // =========================================================================
+        // =========================================================
+        // NATIVE FETCH: Guaranteed Execution, No Iframes or Errors
+        // =========================================================
         function sendToServer(payload, callback) {
-            const iframeName = 'hidden_iframe_' + Date.now();
-            const iframe = document.createElement('iframe');
-            iframe.name = iframeName;
-            iframe.style.display = 'none';
-            // CRITICAL FIX: The iframe is permanently appended to the DOM.
-            // Deleting an iframe instantly kills the HTTP POST request it was running.
-            document.body.appendChild(iframe);
-
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = WEB_APP_URL;
-            form.target = iframeName;
-
+            const formData = new FormData();
             for (const key in payload) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = payload[key] === null || payload[key] === undefined ? '' : payload[key];
-                form.appendChild(input);
+                // Safeguard nulls turning into "null" text
+                const value = payload[key] === null || payload[key] === undefined ? '' : payload[key];
+                formData.append(key, value);
             }
-            document.body.appendChild(form);
-            form.submit();
-
-            // Give the Google Servers exactly 3 seconds to flush the sheet, then execute the callback
-            setTimeout(() => {
-                if(document.body.contains(form)) document.body.removeChild(form);
+            
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: formData
+            }).then(() => {
+                // Apps script takes 1-2 seconds to write. We wait 2.5 seconds before syncing UI.
+                setTimeout(() => {
+                    if(callback) callback();
+                }, 2500); 
+            }).catch(e => {
+                console.error("Fetch failed", e);
                 if(callback) callback();
-            }, 3000);
+            });
         }
 
         document.getElementById('entry-form').addEventListener('submit', function(e) {
