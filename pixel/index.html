@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Extremely strict viewport to prevent iPad scrolling, zooming, and bounce -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Pixel Art Maker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Lock body completely to prevent rubber-banding on iOS */
+        body {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            overscroll-behavior: none;
+            touch-action: none; /* Prevents all default browser touch actions */
+        }
+        
+        /* Pixelated scaling for sharp canvas rendering */
+        canvas { image-rendering: pixelated; }
+        
+        /* Hide scrollbars but keep functionality for timeline/tools */
+        .hidden-scrollbar::-webkit-scrollbar { display: none; }
+        .hidden-scrollbar { -ms-overflow-style: none; scrollbar-width: none; touch-action: pan-y; }
+        .timeline-scroll { touch-action: pan-x; }
+
+        /* Color input styling trick to make it look like a nice button */
+        input[type="color"] {
+            opacity: 0;
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Tool active states */
+        .tool-btn.active {
+            background-color: #3b82f6; /* bg-blue-500 */
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-[#18181c] text-gray-200 overflow-hidden flex flex-col h-screen select-none font-sans">
+
+    <!-- Top Header -->
+    <header class="flex justify-between items-center px-4 py-2 bg-[#232329] border-b border-gray-800 shadow-md z-20 shrink-0 h-14">
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>
+            </div>
+            <h1 class="text-lg font-bold tracking-wide">Pixel Art Maker</h1>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <button onclick="saveProject()" class="flex items-center gap-2 px-3 py-1.5 bg-[#2d2d36] hover:bg-[#3b3b46] rounded text-sm transition-colors">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Save
+            </button>
+            
+            <label class="flex items-center gap-2 px-3 py-1.5 bg-[#2d2d36] hover:bg-[#3b3b46] rounded text-sm transition-colors cursor-pointer">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Load
+                <input type="file" accept=".glrs" class="hidden" onchange="loadProject(event)" />
+            </label>
+            
+            <button onclick="exportSpriteSheet()" class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm transition-colors ml-2">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                Export
+            </button>
+
+            <button onclick="togglePreview(true)" class="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded font-medium text-sm transition-colors ml-2">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Preview
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- Left Toolbar -->
+        <aside class="w-[88px] bg-[#232329] border-r border-gray-800 flex flex-col items-center py-4 gap-4 shrink-0 overflow-y-auto hidden-scrollbar z-10">
+            
+            <!-- Tools -->
+            <div class="flex flex-col gap-2 w-full px-3">
+                <button id="tool-pencil" onclick="setTool('pencil')" class="tool-btn active p-3 rounded-xl flex items-center justify-center transition-all bg-[#2d2d36] text-gray-400 hover:text-white" title="Pencil">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+                </button>
+                <button id="tool-eraser" onclick="setTool('eraser')" class="tool-btn p-3 rounded-xl flex items-center justify-center transition-all bg-[#2d2d36] text-gray-400 hover:text-white" title="Eraser">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path></svg>
+                </button>
+                <button id="tool-fill" onclick="setTool('fill')" class="tool-btn p-3 rounded-xl flex items-center justify-center transition-all bg-[#2d2d36] text-gray-400 hover:text-white" title="Fill Bucket">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"></path><path d="m5 2 5 5"></path><path d="M2 13h15"></path><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"></path></svg>
+                </button>
+                
+                <button onclick="clearFrame()" class="p-2 mt-2 rounded-xl flex flex-col items-center justify-center bg-[#2d2d36] text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all gap-1" title="Erase All">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                    <span class="text-[10px] font-bold leading-none">CLEAR</span>
+                </button>
+            </div>
+
+            <div class="w-12 h-px bg-gray-700"></div>
+
+            <!-- Foreground Colors -->
+            <div id="palette-container" class="grid grid-cols-2 gap-2 px-3">
+                <!-- Swatches injected by JS -->
+            </div>
+            <div class="px-3 w-full">
+                <label class="w-full aspect-square rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center cursor-pointer hover:border-white transition-colors relative">
+                    <input type="color" id="custom-color-input" value="#000000" onchange="setCustomColor(this.value)">
+                    <div id="custom-color-display" class="w-full h-full rounded-full bg-black"></div>
+                </label>
+            </div>
+
+            <div class="w-12 h-px bg-gray-700 mt-2"></div>
+
+            <!-- Background Color Picker -->
+            <div class="flex flex-col items-center gap-1 w-full pb-4">
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">BG Color</span>
+                <label class="w-10 h-10 rounded-lg border-2 border-gray-600 cursor-pointer shadow-lg relative">
+                    <input type="color" id="bg-color-input" value="#232329" onchange="setBackgroundColor(this.value)">
+                    <div id="bg-color-display" class="w-full h-full rounded-md bg-[#232329]"></div>
+                </label>
+            </div>
+
+        </aside>
+
+        <!-- Center Canvas Area -->
+        <main class="flex-1 flex flex-col items-center justify-center bg-[#18181c] p-4 relative overflow-hidden" id="canvas-wrapper">
+            <!-- Canvas Container -->
+            <div id="canvas-container" class="relative shadow-[0_0_40px_rgba(0,0,0,0.5)] rounded-sm bg-[#232329]" 
+                 style="width: min(90%, 80vh); aspect-ratio: 1/1;">
+                
+                <!-- Layer 1: Background Color -->
+                <canvas id="bg-canvas" width="512" height="512" class="absolute inset-0 w-full h-full pointer-events-none rounded-sm"></canvas>
+                
+                <!-- Layer 2: Grid Lines -->
+                <canvas id="grid-canvas" width="512" height="512" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                
+                <!-- Layer 3: Drawing Area -->
+                <canvas id="pixel-canvas" width="512" height="512" class="absolute inset-0 w-full h-full" style="touch-action: none;"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bottom Timeline -->
+    <footer class="h-32 bg-[#232329] border-t border-gray-800 flex items-center px-4 shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.2)] z-20">
+        
+        <!-- Playback Controls -->
+        <div class="flex flex-col items-center justify-center pr-6 border-r border-gray-700 mr-4 h-full gap-3 min-w-[120px]">
+            <div class="flex items-center justify-between w-full text-xs font-medium text-gray-400">
+                <span>Speed:</span>
+                <span id="fps-display" class="text-white">8 FPS</span>
+            </div>
+            <input type="range" id="fps-slider" min="1" max="24" value="8" oninput="updateFps(this.value)" class="w-full accent-blue-500" />
+        </div>
+
+        <!-- Frames List -->
+        <div id="timeline-list" class="flex-1 flex items-center gap-3 overflow-x-auto h-full py-4 px-2 hidden-scrollbar timeline-scroll">
+            <!-- Thumbnails injected by JS -->
+        </div>
+
+        <!-- Timeline Actions -->
+        <div class="flex flex-col gap-2 ml-2 pl-4 border-l border-gray-700 h-full justify-center shrink-0">
+            <button onclick="addFrame()" class="p-2 bg-[#2d2d36] hover:bg-blue-600 text-gray-300 hover:text-white rounded-lg transition-colors" title="Add Blank Frame">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button onclick="duplicateFrame()" class="p-2 bg-[#2d2d36] hover:bg-blue-600 text-gray-300 hover:text-white rounded-lg transition-colors" title="Duplicate Current Frame">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+            <button id="btn-delete-frame" onclick="deleteFrame()" class="p-2 rounded-lg transition-colors bg-[#2d2d36] hover:bg-red-600 text-gray-300 hover:text-white" title="Delete Current Frame">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Fullscreen Preview Modal -->
+    <div id="preview-modal" class="hidden fixed inset-0 z-50 bg-black flex items-center justify-center cursor-pointer flex-col" onclick="togglePreview(false)">
+        <canvas id="preview-canvas" width="16" height="16" class="w-[90vmin] h-[90vmin] max-w-full max-h-full border border-gray-800 shadow-2xl" style="image-rendering: pixelated;"></canvas>
+        <div class="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 text-white/50 text-sm bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm pointer-events-none">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            Tap anywhere or press ESC to exit
+        </div>
+    </div>
+
+    <script>
+        // --- Core Application State ---
+        const PALETTE = [
+            '#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', '#5F574F', '#C2C3C7', '#FFF1E8',
+            '#FF004D', '#FFA300', '#FFEC27', '#00E436', '#29ADFF', '#83769C', '#FF77A8', '#FFCCAA'
+        ];
+        
+        let frames = [new Array(256).fill(null)];
+        let currentFrame = 0;
+        let tool = 'pencil';
+        let currentColor = PALETTE[0];
+        let bgColor = '#232329';
+        let fps = 8;
+        
+        let isDrawing = false;
+        let lastPos = null;
+        let previewInterval = null;
+
+        // --- DOM Elements ---
+        const pixelCanvas = document.getElementById('pixel-canvas');
+        const ctxP = pixelCanvas.getContext('2d');
+        const gridCanvas = document.getElementById('grid-canvas');
+        const ctxG = gridCanvas.getContext('2d');
+        const bgCanvas = document.getElementById('bg-canvas');
+        const ctxB = bgCanvas.getContext('2d');
+        const timelineList = document.getElementById('timeline-list');
+        const btnDeleteFrame = document.getElementById('btn-delete-frame');
+
+        // --- Initialization ---
+        function init() {
+            renderPalette();
+            drawGrid();
+            updateBackgroundColorCanvas();
+            renderTimeline();
+            drawFullFrame();
+            setupCanvasEvents();
+
+            // Keyboard shortcuts
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') togglePreview(false);
+            });
+        }
+
+        // --- UI Rendering ---
+        function renderPalette() {
+            const container = document.getElementById('palette-container');
+            container.innerHTML = '';
+            PALETTE.forEach(color => {
+                const btn = document.createElement('button');
+                btn.className = 'w-8 h-8 rounded-full border-2 transition-transform scale-100 hover:scale-110';
+                btn.style.backgroundColor = color;
+                btn.style.borderColor = (color === currentColor && tool !== 'eraser') ? 'white' : 'transparent';
+                if(color === currentColor && tool !== 'eraser') btn.classList.add('shadow-[0_0_10px_rgba(255,255,255,0.4)]');
+                
+                btn.onclick = () => {
+                    setTool('pencil');
+                    currentColor = color;
+                    renderPalette();
+                    document.getElementById('custom-color-display').style.backgroundColor = color;
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function setTool(newTool) {
+            tool = newTool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active', 'bg-blue-500', 'text-white'));
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.add('bg-[#2d2d36]', 'text-gray-400'));
+            
+            const activeBtn = document.getElementById(`tool-${newTool}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-[#2d2d36]', 'text-gray-400');
+                activeBtn.classList.add('active');
+            }
+            if (newTool === 'pencil' || newTool === 'fill') renderPalette();
+        }
+
+        function setCustomColor(val) {
+            currentColor = val;
+            document.getElementById('custom-color-display').style.backgroundColor = val;
+            setTool('pencil');
+        }
+
+        function setBackgroundColor(val) {
+            bgColor = val;
+            document.getElementById('bg-color-display').style.backgroundColor = val;
+            document.getElementById('canvas-container').style.backgroundColor = val;
+            updateBackgroundColorCanvas();
+            renderTimeline(); // Re-render thumbnails to show new background
+        }
+
+        function updateFps(val) {
+            fps = parseInt(val);
+            document.getElementById('fps-display').innerText = `${fps} FPS`;
+        }
+
+        // --- Canvas Drawing Logic ---
+        function drawGrid() {
+            ctxG.clearRect(0, 0, 512, 512);
+            ctxG.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctxG.lineWidth = 1;
+            for (let i = 0; i <= 16; i++) {
+                ctxG.beginPath(); ctxG.moveTo(i * 32, 0); ctxG.lineTo(i * 32, 512); ctxG.stroke();
+                ctxG.beginPath(); ctxG.moveTo(0, i * 32); ctxG.lineTo(512, i * 32); ctxG.stroke();
+            }
+        }
+
+        function updateBackgroundColorCanvas() {
+            ctxB.fillStyle = bgColor;
+            ctxB.fillRect(0, 0, 512, 512);
+        }
+
+        function drawFullFrame() {
+            ctxP.clearRect(0, 0, 512, 512);
+            const frame = frames[currentFrame];
+            for (let i = 0; i < 256; i++) {
+                if (frame[i]) {
+                    ctxP.fillStyle = frame[i];
+                    ctxP.fillRect((i % 16) * 32, Math.floor(i / 16) * 32, 32, 32);
+                }
+            }
+        }
+
+        function applyColorToCell(col, row, colorToApply) {
+            if (col < 0 || col > 15 || row < 0 || row > 15) return;
+            const idx = row * 16 + col;
+            
+            if (frames[currentFrame][idx] !== colorToApply) {
+                frames[currentFrame][idx] = colorToApply;
+                ctxP.clearRect(col * 32, row * 32, 32, 32);
+                if (colorToApply) {
+                    ctxP.fillStyle = colorToApply;
+                    ctxP.fillRect(col * 32, row * 32, 32, 32);
+                }
+            }
+        }
+
+        function drawLine(x0, y0, x1, y1, colorToApply) {
+            let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+            let sx = (x0 < x1) ? 1 : -1, sy = (y0 < y1) ? 1 : -1;
+            let err = dx - dy;
+
+            while (true) {
+                applyColorToCell(x0, y0, colorToApply);
+                if (x0 === x1 && y0 === y1) break;
+                let e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        function floodFill(startCol, startRow, targetColor, replacementColor) {
+            if (targetColor === replacementColor) return;
+            const stack = [[startCol, startRow]];
+            const frame = frames[currentFrame];
+
+            while (stack.length > 0) {
+                const [c, r] = stack.pop();
+                const idx = r * 16 + c;
+
+                if (c < 0 || c > 15 || r < 0 || r > 15) continue;
+                if (frame[idx] !== targetColor) continue;
+
+                applyColorToCell(c, r, replacementColor);
+                stack.push([c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]);
+            }
+        }
+
+        // --- Interaction Events ---
+        function getCoordinates(e) {
+            const rect = pixelCanvas.getBoundingClientRect();
+            const scaleX = pixelCanvas.width / rect.width;
+            const scaleY = pixelCanvas.height / rect.height;
+            return {
+                col: Math.floor((e.clientX - rect.left) * scaleX / 32),
+                row: Math.floor((e.clientY - rect.top) * scaleY / 32)
+            };
+        }
+
+        function setupCanvasEvents() {
+            pixelCanvas.addEventListener('pointerdown', (e) => {
+                pixelCanvas.setPointerCapture(e.pointerId);
+                isDrawing = true;
+                const { col, row } = getCoordinates(e);
+                lastPos = { col, row };
+
+                if (tool === 'fill') {
+                    const targetColor = frames[currentFrame][row * 16 + col];
+                    floodFill(col, row, targetColor, currentColor);
+                    updateThumbnail(currentFrame);
+                } else {
+                    const colorToApply = tool === 'eraser' ? null : currentColor;
+                    applyColorToCell(col, row, colorToApply);
+                }
+            });
+
+            pixelCanvas.addEventListener('pointermove', (e) => {
+                if (!isDrawing || tool === 'fill') return;
+                const { col, row } = getCoordinates(e);
+                const colorToApply = tool === 'eraser' ? null : currentColor;
+                
+                if (lastPos) drawLine(lastPos.col, lastPos.row, col, row, colorToApply);
+                else applyColorToCell(col, row, colorToApply);
+                
+                lastPos = { col, row };
+            });
+
+            const stopDrawing = (e) => {
+                if (!isDrawing) return;
+                pixelCanvas.releasePointerCapture(e.pointerId);
+                isDrawing = false;
+                lastPos = null;
+                updateThumbnail(currentFrame);
+            };
+
+            pixelCanvas.addEventListener('pointerup', stopDrawing);
+            pixelCanvas.addEventListener('pointercancel', stopDrawing);
+        }
+
+        // --- Timeline Management ---
+        function selectFrame(index) {
+            currentFrame = index;
+            drawFullFrame();
+            renderTimeline();
+        }
+
+        function addFrame() {
+            frames.push(new Array(256).fill(null));
+            currentFrame = frames.length - 1;
+            drawFullFrame();
+            renderTimeline();
+        }
+
+        function duplicateFrame() {
+            frames.push([...frames[currentFrame]]);
+            currentFrame = frames.length - 1;
+            drawFullFrame();
+            renderTimeline();
+        }
+
+        function deleteFrame() {
+            if (frames.length > 1) {
+                frames.splice(currentFrame, 1);
+                currentFrame = Math.max(0, currentFrame - 1);
+                drawFullFrame();
+                renderTimeline();
+            }
+        }
+
+        function clearFrame() {
+            frames[currentFrame] = new Array(256).fill(null);
+            drawFullFrame();
+            updateThumbnail(currentFrame);
+        }
+
+        function renderTimeline() {
+            timelineList.innerHTML = '';
+            frames.forEach((frame, index) => {
+                const wrapper = document.createElement('div');
+                const isActive = currentFrame === index;
+                
+                wrapper.className = `relative flex-shrink-0 cursor-pointer border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+                    isActive ? 'border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.6)] scale-105 z-10' 
+                             : 'border-[#4a4a5a] hover:border-gray-400 opacity-70 hover:opacity-100'
+                }`;
+                wrapper.style.width = '68px';
+                wrapper.style.height = '68px';
+                wrapper.style.backgroundColor = bgColor; // Thumbnails use chosen BG
+                wrapper.onclick = () => selectFrame(index);
+
+                const numBadge = document.createElement('div');
+                numBadge.className = 'absolute top-0 left-0 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg z-10';
+                numBadge.innerText = index + 1;
+
+                const thumbCanvas = document.createElement('canvas');
+                thumbCanvas.id = `thumb-${index}`;
+                thumbCanvas.width = 16;
+                thumbCanvas.height = 16;
+                thumbCanvas.className = 'w-full h-full';
+                thumbCanvas.style.imageRendering = 'pixelated';
+
+                wrapper.appendChild(numBadge);
+                wrapper.appendChild(thumbCanvas);
+                timelineList.appendChild(wrapper);
+
+                updateThumbnailCanvas(thumbCanvas, frame);
+            });
+
+            btnDeleteFrame.disabled = frames.length <= 1;
+            btnDeleteFrame.style.opacity = frames.length <= 1 ? '0.5' : '1';
+            btnDeleteFrame.style.cursor = frames.length <= 1 ? 'not-allowed' : 'pointer';
+        }
+
+        function updateThumbnail(index) {
+            const canvas = document.getElementById(`thumb-${index}`);
+            if (canvas) updateThumbnailCanvas(canvas, frames[index]);
+        }
+
+        function updateThumbnailCanvas(canvas, frameData) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, 16, 16);
+            for (let i = 0; i < 256; i++) {
+                if (frameData[i]) {
+                    ctx.fillStyle = frameData[i];
+                    ctx.fillRect(i % 16, Math.floor(i / 16), 1, 1);
+                }
+            }
+        }
+
+        // --- Save, Load, Export ---
+        function saveProject() {
+            const projectData = { format: 'glrs', version: 2, fps, bgColor, frames };
+            const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'animation.glrs';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadProject(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.format === 'glrs' && data.frames) {
+                        frames = data.frames;
+                        fps = data.fps || 8;
+                        document.getElementById('fps-slider').value = fps;
+                        updateFps(fps);
+                        
+                        if (data.bgColor) {
+                            setBackgroundColor(data.bgColor);
+                            document.getElementById('bg-color-input').value = data.bgColor;
+                        }
+
+                        currentFrame = 0;
+                        drawFullFrame();
+                        renderTimeline();
+                    } else { alert('Invalid project file format.'); }
+                } catch (err) { alert('Failed to parse the file.'); }
+            };
+            reader.readAsText(file);
+            e.target.value = null;
+        }
+
+        function exportSpriteSheet() {
+            const scale = 10;
+            const canvas = document.createElement('canvas');
+            canvas.width = frames.length * 16 * scale;
+            canvas.height = 16 * scale;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw background color globally
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw frames
+            frames.forEach((frame, frameIdx) => {
+                for (let i = 0; i < 256; i++) {
+                    if (frame[i]) {
+                        ctx.fillStyle = frame[i];
+                        ctx.fillRect((frameIdx * 16 + (i % 16)) * scale, Math.floor(i / 16) * scale, scale, scale);
+                    }
+                }
+            });
+
+            const a = document.createElement('a');
+            a.href = canvas.toDataURL('image/png');
+            a.download = 'spritesheet.png';
+            a.click();
+        }
+
+        // --- Preview Mode ---
+        function togglePreview(show) {
+            const modal = document.getElementById('preview-modal');
+            const pCanvas = document.getElementById('preview-canvas');
+            const pCtx = pCanvas.getContext('2d');
+            
+            if (show) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                pCanvas.style.backgroundColor = bgColor;
+                
+                let idx = 0;
+                const drawFrame = () => {
+                    pCtx.clearRect(0, 0, 16, 16);
+                    for (let i = 0; i < 256; i++) {
+                        if (frames[idx][i]) {
+                            pCtx.fillStyle = frames[idx][i];
+                            pCtx.fillRect(i % 16, Math.floor(i / 16), 1, 1);
+                        }
+                    }
+                    idx = (idx + 1) % frames.length;
+                };
+                
+                drawFrame();
+                previewInterval = setInterval(drawFrame, 1000 / fps);
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                clearInterval(previewInterval);
+            }
+        }
+
+        // Bootstrap App
+        window.onload = init;
+    </script>
+</body>
+</html>
