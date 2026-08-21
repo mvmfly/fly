@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- Apple iOS Standalone/Offline Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Flight Card">
+  <meta name="theme-color" content="#ffffff">
+  
+  <title>Flight Card v2.4 (Offline Protected)</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    /* --- CORE STYLES --- */
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; font-family: monospace; font-size: 10px;
+      width: 100%; height: 100%;
+      transition: background-color 0.3s, color 0.3s;
+      
+      /* Aggressive Swipe and Refresh Prevention */
+      overscroll-behavior: none; 
+      -webkit-touch-callout: none;
+    }
+    body {
+      display: flex; justify-content: center; align-items: flex-start;
+      padding: 10px; transform-origin: top left;
+      background-color: #ffffff; color: #000000;
+    }
+    
+    /* Allow selection only on inputs, prevent accidental UI selection that causes dragging */
+    .page:not(input):not(textarea) {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+    input, textarea, select, .data-display {
+        -webkit-user-select: auto;
+        user-select: auto;
+    }
+
+    .page {
+      display: none; width: 750px; max-width: 750px;
+      background-color: #ffffff; color: #000000;
+      border: 1px solid transparent; transition: background-color 0.3s, color 0.3s;
+    }
+    .active { display: block; }
+
+    /* Heading Area */
+    .heading-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .heading-left { display: flex; align-items: center; gap: 10px; }
+    .heading-controls { display: flex; align-items: center; gap: 10px; }
+    #cardPage .heading-controls { gap: 0; }
+    .heading-container h3 { margin: 0; }
+
+    /* Sync Status Indicator */
+    #sync-status {
+        font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 5px;
+        padding: 2px 6px; border-radius: 4px; background: #eee; cursor: pointer; user-select: none;
+    }
+    #sync-status.synced { color: #2e7d32; background: #e8f5e9; } 
+    #sync-status.offline { color: #555; background: #eee; }
+    #sync-status.error { color: #c62828; background: #ffebee; }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal {
+        background: white; padding: 20px; border-radius: 4px; width: 400px;
+        max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        font-family: monospace; font-size: 12px; color: black;
+    }
+    .modal h4 { margin-top: 0; border-bottom: 2px solid #0066cc; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;}
+    .modal-list-item {
+        padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-list-item:hover { background: #f0f8ff; }
+    .flight-info { cursor: pointer; flex-grow: 1; }
+    .delete-btn { color: #cc3300; cursor: pointer; padding: 5px 10px; margin-left: 10px; }
+    .delete-btn:hover { background-color: #ffebee; border-radius: 3px; }
+    .modal-close { cursor: pointer; font-size: 14px; font-weight: bold; }
+
+    /* Table Structure */
+    .form-section { display: flex; flex-direction: column; width: 100%; border: 1px solid black; border-collapse: collapse; transition: border-color 0.3s; }
+    #cardPage .form-section { border: none; }
+    
+    .row { display: flex; width: 100%; border-bottom: 1px solid black; transition: border-color 0.3s; }
+    .row:last-child, .row.no-bottom-border { border-bottom: none; }
+    .row.add-top-border { border-top: 1px solid black; transition: border-color 0.3s; }
+    
+    /* Cell Styling - Tightened padding to fix overflow */
+    .cell {
+      border-right: 1px solid black; padding: 3px; display: flex; align-items: center; gap: 3px;
+      flex-shrink: 0; flex-grow: 0; white-space: nowrap; transition: border-color 0.3s;
+    }
+    .cell:last-child { border-right: none; min-width: 0; }
+
+    /* Seamless Rows (Plan -> Remarks) */
+    .seamless-row .cell { border-right: none; padding: 5px 2px; gap: 2px; border-bottom: none; margin-right: 3px; }
+    .seamless-row .cell:last-child { margin-right: 0; flex-grow: 0; }
+    .seamless-row { border-bottom: none; }
+    .filler-cell { min-width: 0; padding: 0 !important; flex-grow: 1; border: none !important; margin-right: 0; }
+    
+    /* Labels */
+    .label-fixed { width: 35px; flex-shrink: 0; display: inline-block; text-align: left; }
+    .label-reg { width: 25px; }
+    .reg-prefix { margin-right: 1px; }
+    .label-right-aligned { text-align: right; width: auto; flex-shrink: 0; }
+    
+    /* Input Styling */
+    .cell input[type="text"], .cell select, .cell textarea {
+        font-size: inherit; padding: 1px; height: auto; background-color: #ffffff; color: #000000;
+        border: 1px solid #ccc; transition: all 0.3s; font-family: inherit;
+    }
+    .cell input[readonly] { background-color: #eeeeee; }
+    .cell textarea { width: 100%; max-width: 100%; resize: both; min-height: 40px; }
+    .remarks-cell { flex-basis: 280px; flex-grow: 0; flex-shrink: 0; border-right: none !important; padding: 5px 2px !important; margin-right: 3px; }
+
+    /* --- ALIGNMENT & WIDTHS (Adjusted for 750px Fit) --- */
+    
+    .name-input, .crew-name-input { width: 135px !important; } 
+    input#staffNo { width: 85px !important; }
+    
+    /* Capt/Crew Structure */
+    .capt-cell { display: flex; flex-direction: column; gap: 4px; min-width: 200px; align-items: flex-start; }
+    .capt-top { display: flex; gap: 5px; width: 100%; }
+    .capt-top .field { flex: 1; display: flex; align-items: center; gap: 5px; }
+    
+    .dynamic-crew-wrapper { display: flex; flex-direction: column; width: 100%; gap: 4px; margin-top: 4px; }
+    #additional-crew-container { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+    .crew-row { display: flex; gap: 5px; width: 100%; align-items: center; }
+
+    /* Alignment Enforcement */
+    .label-capt, .crew-type-select { width: 40px !important; flex-shrink: 0; display: inline-block; }
+    .crew-type-select { height: auto; padding: 1px; }
+
+    /* Crew Controls */
+    .crew-control-btn { 
+        width: 18px; height: 18px; font-size: 12px; line-height: 16px; text-align: center; 
+        padding: 0; margin-left: 4px; border-radius: 3px; border: 1px solid #888; 
+        cursor: pointer; background-color: #f0f0f0; 
+    }
+    .remove-crew-btn { background-color: #f8d7da; border-color: #f5c6cb; }
+    .crew-row:only-child .remove-crew-btn { display: none !important; }
+    .add-crew-btn { display: none; }
+    .crew-row:last-child .add-crew-btn { display: inline-block; }
+
+    /* Other Input Widths */
+    .crew-pax-inputs input { width: 40px !important; }
+    .prefix-input input { width: 45px !important; }
+    
+    input#plan { width: 25px !important; }
+    input#reg, input#fl, input#dest, input#flightNo, input#pdc { width: 35px !important; }
+    input#gate, input#india_gate, input#bi, input#v2, input#v2_plus_15, input#qnh, input#aus_sqwk, input#opti_climb, input#opti_desc1, input#opti_desc2 { width: 45px !important; }
+    input#opti_mach { width: 30px !important; }
+    input#pob, input#india_pob { width: 40px !important; }
+    select#info, select#india_info { width: 35px !important; }
+    input#pzfw, input#ezfw, input#pfit, input#exs, input#bo, input#res, input#fzfw, input#ezfw_du, input#fzfw_du, input#percent_mac, input#aus_climb_alt { width: 55px !important; }
+    input#bw { width: 65px !important; }
+    input#sid, input#star, input#aus_cleared_sid, input#aus_cleared_wpt { width: 100px !important; }
+
+    /* Cell Specifics */
+    .cell.label-small input { width: 45px; }
+    .cell.crew-cell { flex-direction: row; }
+    .crew-pax-inputs { display: flex; align-items: center; gap: 3px; }
+    
+    /* Reduced Prefix Cell from 75px to 70px to fix overflow */
+    .cell.prefix-cell { 
+        flex-direction: column; align-items: flex-start; width: 70px !important; 
+        min-width: 70px !important; max-width: 70px !important; flex: 0 0 70px !important; padding: 5px; gap: 5px; 
+    }
+    .prefix-input { display: flex; align-items: center; gap: 2px; }
+
+    /* Time Inputs */
+    .time-input-container { display: flex; align-items: center; gap: 2px; }
+    .time-input { width: 40px !important; text-align: center; padding: 2px; }
+    .gmt-select { width: 60px !important; font-size: inherit; padding: 1px; }
+    .time-suffix { margin-right: 5px; }
+    .time-separator { font-weight: bold; }
+    .time-cell { border-right: none !important; flex-grow: 0 !important; flex-shrink: 0 !important; }
+
+    /* Opti Section */
+    .opti-mach-wrapper { display: flex; align-items: center; gap: 2px; }
+    .crz-check-label { font-size: 8px; margin-left: 2px; display: flex; align-items: center; cursor: pointer; }
+    .crz-text { font-weight: bold; display: none; margin-left: 2px; }
+
+    /* Buttons */
+    .button-container { margin-top: 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .button { margin: 0; font-size: 12px; background-color: #0066cc; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; transition: background-color 0.3s; }
+    .button:hover { background-color: #0055aa; }
+    #purgeButton { background-color: #cc3300; }
+    .btn-green { background-color: #2e7d32; }
+    .btn-grey { background-color: #757575; }
+    .btn-fetch { background-color: #0066cc; color: white; border: none; padding: 2px 5px; border-radius: 3px; cursor: pointer; font-size: 9px; margin-left: auto; margin-right: 5px;}
+    
+    .format-selector-row { padding: 5px; background-color: #eeeeee; border-bottom: 1px solid black; box-sizing: border-box; }
+    .format-selector-row select { font-size: 10px; padding: 2px; }
+
+    /* Audio Recording Button */
+    .record-btn {
+        background-color: transparent; border: 1px solid #ccc; color: #cc3300; 
+        border-radius: 50%; width: 22px; height: 22px; display: flex; 
+        justify-content: center; align-items: center; cursor: pointer; font-size: 10px;
+    }
+    .record-btn.recording {
+        background-color: #cc3300; color: white; border-color: #cc3300;
+        animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+    /* Toggle Switch */
+    .switch { position: relative; display: inline-block; width: 40px; height: 20px; vertical-align: middle; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #0066cc; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .footer-text { font-size: 11px; margin-top: 15px; text-align: left; color: #4CAF50; font-weight: bold; background: #e8f5e9; padding: 8px; border-radius: 4px;}
+    #fileInput { display: none; }
+
+    /* Card Page Display */
+    .data-display { display: inline-block; min-height: 1em; padding: 1px; box-sizing: border-box; white-space: pre; }
+    #card-remarks { white-space: pre-wrap; display: block; text-align: left; min-height: 3.6em; width: 100%; }
+    #card-flight-number-display { font-size: 20px; font-weight: bold; display: flex; align-items: baseline; gap: 5px; }
+    .text-blue { color: #0066cc; } .text-red { color: #cc3300; }
+    .format-row { display: none; } .format-row.active { display: flex; }
+    .first-data-cell { flex-basis: 110px; flex-shrink: 0; flex-grow: 0; }
+    #cardPage .crew-pax-inputs { gap: 1px; }
+    #card-additional-crew { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+    
+    /* Card Crew Alignment Fix */
+    .card-crew-row { display: flex; gap: 5px; align-items: center; }
+    .card-crew-type { 
+        width: 40px !important; 
+        flex-shrink: 0; 
+        display: inline-block; 
+        text-align: left;
+    }
+    
+    /* Australia Format Fields */
+    #aus_cleared_fpr { width: 45px !important; }
+    #aus_departure { width: 55px !important; }
+    #aus_cvs_ft { width: 40px !important; }
+    #aus_sqwk { width: 40px !important; }
+    #aus_dep_freq { width: 50px !important; }
+
+    /* NIGHT MODE */
+    body.night-mode { background-color: #1a1a1a; color: #e0e0e0; }
+    .night-mode .page, .night-mode .modal { background-color: #1a1a1a; color: #e0e0e0; }
+    .night-mode .heading-container h3 { color: #e0e0e0; }
+    .night-mode .format-selector-row { background-color: #2c2c2c; }
+    .night-mode .format-selector-row select { background-color: #333333; color: #e0e0e0; border-color: #666; }
+    .night-mode .form-section, .night-mode .row, .night-mode .cell { border-color: #555555; }
+    .night-mode .cell input[type="text"], .night-mode .cell select, .night-mode .cell textarea { background-color: #333333; color: #e0e0e0; border-color: #666; }
+    .night-mode .cell input[readonly] { background-color: #444444; color: #bbbbbb; }
+    .night-mode .text-blue { color: #66aaff; } .night-mode .text-red { color: #ff6666; }
+    .night-mode #card-flight-number-display { color: #ffffff; }
+    .night-mode #sync-status { background: #333; color: #aaa; }
+    .night-mode #sync-status.synced { color: #66bb6a; background: #1b5e20; }
+    .night-mode #sync-status.error { color: #ef5350; background: #3c1515; }
+    .night-mode .footer-text { background-color: #1b5e20; color: #a5d6a7;}
+    
+    @media print {
+        body { background: #fff !important; color: #000 !important; transform: none !important; padding: 0 !important; }
+        .heading-controls, .button-container, .footer-text, #fileInput, .format-selector-row, #formPage, .crew-controls, #sync-status, #fetchTimesBtn { display: none !important; }
+        .page { display: none !important; border: none !important; width: 100% !important; max-width: 100% !important; }
+        #cardPage { display: block !important; }
+        #cardPage .form-section { border: 1px solid black !important; }
+        #cardPage .row, #cardPage .cell { border-color: black !important; color: black !important; }
+        #cardPage .text-blue { color: #0000FF !important; }
+        #cardPage .text-red { color: #FF0000 !important; }
+        #cardPage .crz-check-label { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <input type="file" id="fileInput" accept=".78x" />
+
+  <!-- Cloud Load/Delete Modal -->
+  <div id="loadModal" class="modal-overlay">
+      <div class="modal">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #0066cc; margin-bottom:10px; padding-bottom:5px;">
+              <h4 style="margin:0; border:none;">Load / Delete Flight</h4>
+              <span class="modal-close" onclick="closeModal()">X</span>
+          </div>
+          <div id="flight-list-container">Loading...</div>
+      </div>
+  </div>
+
+  <div id="formPage" class="page active">
+    <div class="heading-container">
+        <div class="heading-left">
+            <h3>Flight Card Entry <i class="fas fa-shield-alt" style="color: #4CAF50; font-size: 12px;" title="Offline Protection Active"></i></h3>
+            <div id="sync-status" class="offline" title="Check Connection" onclick="checkConnection()">
+                <i class="fas fa-circle-notch"></i> <span>Check</span>
+            </div>
+        </div>
+        <div class="heading-controls">
+            <button id="purgeButton" class="button">Purge</button>
+            <button id="recordBtn" class="record-btn" title="Record Voice Memo"><i class="fas fa-microphone"></i></button>
+            <label class="switch" title="Toggle Day/Night Mode">
+              <input type="checkbox" id="darkModeToggle">
+              <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
+    
+    <div class="form-section">
+      <div class="row row-1">
+        <div class="cell label-small">
+          <label for="flightNo">SQ</label>
+          <input type="text" id="flightNo" maxlength="3" pattern="[0-9]*" inputmode="numeric">
+        </div>
+        
+        <div class="cell capt-cell">
+          <div class="capt-top">
+            <div class="field">
+              <label class="label-capt" for="capt">CAPT</label>
+              <input type="text" id="capt" placeholder="Name" class="name-input">
+            </div>
+            <div class="field">
+              <label for="staffNo">No.</label>
+              <input type="text" id="staffNo" maxlength="8" pattern="[0-9]*" inputmode="numeric">
+            </div>
+          </div>
+          <div class="dynamic-crew-wrapper">
+              <div id="additional-crew-container"></div>
+          </div>
+        </div>
+
+        <div class="cell crew-cell">
+          <label for="crew">CREW/PAX</label>
+          <div class="crew-pax-inputs">
+            <input type="text" id="crew" maxlength="4" pattern="[0-9]*" inputmode="numeric">
+            <span>/</span>
+            <input type="text" id="pax" maxlength="4" pattern="[0-9]*" inputmode="numeric">
+          </div>
+        </div>
+        <div class="cell prefix-cell">
+          <label for="m2000">(M/2000ft)</label>
+          <div class="prefix-input"> <span>+</span> <input type="text" id="m2000" pattern="[0-9]*" inputmode="numeric"> </div>
+        </div>
+        <div class="cell prefix-cell">
+          <label for="p1000">(P/1000kg)</label>
+          <div class="prefix-input"> <span>+</span> <input type="text" id="p1000" pattern="[0-9]*" inputmode="numeric"> </div>
+        </div>
+        <div class="cell prefix-cell">
+          <label for="m1000">(M/1000kg)</label>
+          <div class="prefix-input"> <span>-</span> <input type="text" id="m1000" pattern="[0-9]*" inputmode="numeric"> </div>
+        </div>
+      </div>
+      
+      <div class="row no-bottom-border">
+        <div class="cell time-cell">
+          <label for="std-hours">STD</label>
+          <div class="time-input-container">
+            <input type="text" id="std-hours" class="time-input" maxlength="2" placeholder="HH" pattern="[0-9]*" inputmode="numeric">
+            <span class="time-separator">:</span>
+            <input type="text" id="std-minutes" class="time-input" maxlength="2" placeholder="MM" pattern="[0-9]*" inputmode="numeric">
+            <span class="time-suffix">Z</span>
+            <select id="std-gmt" class="gmt-select">
+               <option value="">GMT</option>
+               <option value="+14">+14</option><option value="+13.75">+13.75</option><option value="+13">+13</option><option value="+12.75">+12.75</option><option value="+12">+12</option>
+               <option value="+11">+11</option><option value="+10.5">+10.5</option><option value="+10">+10</option><option value="+9.5">+9.5</option><option value="+9">+9</option>
+               <option value="+8.75">+8.75</option><option value="+8" selected>+8</option><option value="+7">+7</option><option value="+6.5">+6.5</option><option value="+6">+6</option>
+               <option value="+5.75">+5.75</option><option value="+5.5">+5.5</option><option value="+5">+5</option><option value="+4.5">+4.5</option><option value="+4">+4</option>
+               <option value="+3.5">+3.5</option><option value="+3">+3</option><option value="+2">+2</option><option value="+1">+1</option><option value="0">0</option>
+               <option value="-1">-1</option><option value="-2">-2</option><option value="-3">-3</option><option value="-3.5">-3.5</option><option value="-4">-4</option>
+               <option value="-5">-5</option><option value="-6">-6</option><option value="-7">-7</option><option value="-8">-8</option><option value="-9">-9</option>
+               <option value="-9.5">-9.5</option><option value="-10">-10</option><option value="-11">-11</option><option value="-12">-12</option>
+            </select>
+            <input type="text" id="std-lt-hours" class="time-input" maxlength="2" placeholder="HH" readonly>
+            <span class="time-separator">:</span>
+            <input type="text" id="std-lt-minutes" class="time-input" maxlength="2" placeholder="MM" readonly>
+            <span class="time-suffix">LT</span>
+            <span class="time-suffix">FLT/T</span>
+            <input type="text" id="flt-t-hours" class="time-input" maxlength="2" placeholder="HH" pattern="[0-9]*" inputmode="numeric">
+            <span class="time-separator">:</span>
+            <input type="text" id="flt-t-minutes" class="time-input" maxlength="2" placeholder="MM" pattern="[0-9]*" inputmode="numeric">
+          </div>
+        </div>
+        <div class="cell filler-cell"></div>
+      </div>
+      
+      <div class="row">
+        <div class="cell time-cell">
+          <label for="sta-hours">STA</label>
+          <div class="time-input-container">
+            <input type="text" id="sta-hours" class="time-input" maxlength="2" placeholder="HH" pattern="[0-9]*" inputmode="numeric">
+            <span class="time-separator">:</span>
+            <input type="text" id="sta-minutes" class="time-input" maxlength="2" placeholder="MM" pattern="[0-9]*" inputmode="numeric">
+            <span class="time-suffix">Z</span>
+            <select id="sta-gmt" class="gmt-select">
+              <option value="">GMT</option>
+               <option value="+14">+14</option><option value="+13.75">+13.75</option><option value="+13">+13</option><option value="+12.75">+12.75</option><option value="+12">+12</option>
+               <option value="+11">+11</option><option value="+10.5">+10.5</option><option value="+10">+10</option><option value="+9.5">+9.5</option><option value="+9">+9</option>
+               <option value="+8.75">+8.75</option><option value="+8" selected>+8</option><option value="+7">+7</option><option value="+6.5">+6.5</option><option value="+6">+6</option>
+               <option value="+5.75">+5.75</option><option value="+5.5">+5.5</option><option value="+5">+5</option><option value="+4.5">+4.5</option><option value="+4">+4</option>
+               <option value="+3.5">+3.5</option><option value="+3">+3</option><option value="+2">+2</option><option value="+1">+1</option><option value="0">0</option>
+               <option value="-1">-1</option><option value="-2">-2</option><option value="-3">-3</option><option value="-3.5">-3.5</option><option value="-4">-4</option>
+               <option value="-5">-5</option><option value="-6">-6</option><option value="-7">-7</option><option value="-8">-8</option><option value="-9">-9</option>
+               <option value="-9.5">-9.5</option><option value="-10">-10</option><option value="-11">-11</option><option value="-12">-12</option>
+            </select>
+            <input type="text" id="sta-lt-hours" class="time-input" maxlength="2" placeholder="HH" readonly>
+            <span class="time-separator">:</span>
+            <input type="text" id="sta-lt-minutes" class="time-input" maxlength="2" placeholder="MM" readonly>
+            <span class="time-suffix">LT</span>
+            <span class="time-suffix">BLK/T</span>
+            <input type="text" id="blk-t-hours" class="time-input" maxlength="2" placeholder="HH" readonly>
+            <span class="time-separator">:</span>
+            <input type="text" id="blk-t-minutes" class="time-input" maxlength="2" placeholder="MM" readonly>
+          </div>
+        </div>
+        <div class="cell filler-cell" style="display:flex; align-items:center;">
+             <button id="fetchTimesBtn" class="btn-fetch"><i class="fas fa-clock"></i> Fetch Times</button>
+        </div>
+      </div>
+
+       <div class="row format-selector-row">
+            <label for="formatSelector" style="margin-right: 5px;">FORMAT</label>
+            <select id="formatSelector">
+                <option value="default">Default</option>
+                <option value="india">India Station</option>
+                <option value="australia">Australian Station</option>
+            </select>
+       </div>
+      
+      <div class="row seamless-row format-row active" id="default-format-row">
+        <div class="cell"> <label class="label-fixed" for="plan">PLAN</label> <input type="text" id="plan" maxlength="2" pattern="[0-9]*" inputmode="numeric"> </div>
+        <div class="cell"> <label class="label-fixed label-reg" for="reg">REG</label> <span class="reg-prefix">9V-</span><input type="text" id="reg" maxlength="3"> </div>
+        <div class="cell"> <label class="label-right-aligned" for="gate">GATE</label> <input type="text" id="gate" maxlength="4"> </div>
+        <div class="cell"> <label class="label-right-aligned" for="info">INFO</label> <select id="info"><option value="">-</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option><option value="N">N</option><option value="O">O</option><option value="P">P</option><option value="Q">Q</option><option value="R">R</option><option value="S">S</option><option value="T">T</option><option value="U">U</option><option value="V">V</option><option value="W">W</option><option value="X">X</option><option value="Y">Y</option><option value="Z">Z</option></select> </div>
+        <div class="cell"> <label class="label-right-aligned" for="fl">FL</label> <input type="text" id="fl" maxlength="3" pattern="[0-9]*" inputmode="numeric"> </div>
+        <div class="cell"> <label class="label-right-aligned" for="dest">DEST</label> <input type="text" id="dest" maxlength="3"> </div>
+        <div class="cell"> <label class="label-right-aligned" for="pob">POB</label> <input type="text" id="pob" readonly> </div>
+      </div>
+
+       <div class="row seamless-row format-row" id="india-format-row">
+            <div class="cell"> <label for="pdc">PDC</label> <input type="text" id="pdc" maxlength="3" pattern="[0-9]*" inputmode="numeric"> </div>
+            <div class="cell"> <label class="label-right-aligned" for="india_gate">GATE</label> <input type="text" id="india_gate" maxlength="4"> </div>
+            <div class="cell"> <label class="label-right-aligned" for="india_info">ATIS</label> <select id="india_info"><option value="">-</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option><option value="N">N</option><option value="O">O</option><option value="P">P</option><option value="Q">Q</option><option value="R">R</option><option value="S">S</option><option value="T">T</option><option value="U">U</option><option value="V">V</option><option value="W">W</option><option value="X">X</option><option value="Y">Y</option><option value="Z">Z</option></select> </div>
+             <div class="cell"> <label for="qnh">QNH</label> <input type="text" id="qnh" maxlength="4" pattern="[0-9]*" inputmode="numeric"> </div>
+             <div class="cell"> <input type="text" id="india_pob" readonly> <label for="india_pob">POB, ALL THROUGH SECURITY.</label> </div>
+            <div class="cell filler-cell"></div>
+       </div>
+
+        <!-- UPDATED AUSTRALIA ROW -->
+        <div class="row seamless-row format-row" id="australia-format-row">
+             <div class="cell"> 
+                 <label>CLRD</label> 
+                 <input type="text" id="aus_cleared_fpr"> 
+                 <label>FPR</label> 
+             </div>
+             <div class="cell"> 
+                 <input type="text" id="aus_departure"> 
+                 <label>DEPARTURE CVS TO</label> 
+             </div>
+             <div class="cell"> 
+                 <input type="text" id="aus_cvs_ft" maxlength="5" pattern="[0-9]*" inputmode="numeric"> 
+                 <label>FT SQWK</label> 
+             </div>
+            <div class="cell"> 
+                <input type="text" id="aus_sqwk" maxlength="4" pattern="[0-9]*" inputmode="numeric"> 
+            </div>
+            <div class="cell">
+                <label>DEP FREQ</label>
+                <input type="text" id="aus_dep_freq">
+            </div>
+            <div class="cell filler-cell"></div>
+        </div>
+
+      <div class="row seamless-row data-row add-top-border"> 
+        <div class="cell first-data-cell"> <label class="label-fixed" for="bw">BW</label> <input type="text" id="bw" maxlength="6" pattern="[0-9]*" inputmode="numeric"> </div>
+        <div class="cell"> <label class="label-fixed label-reg" for="bi">BI</label> <input type="text" id="bi" maxlength="4" pattern="[0-9.]*"> </div>
+         <div class="cell filler-cell"></div>
+      </div>
+      
+      <div class="row seamless-row data-row add-top-border"> 
+        <div class="cell first-data-cell"> <label class="label-fixed" for="pzfw">PZFW</label> <input type="text" id="pzfw" maxlength="5" pattern="[0-9.]*"> </div>
+        <div class="cell"> <label class="label-fixed label-reg" for="ezfw">EZFW</label> <input type="text" id="ezfw" maxlength="5" pattern="[0-9.]*"> </div>
+        <div class="cell"> <label class="label-fixed" for="ezfw_du">D/U</label> <input type="text" id="ezfw_du" readonly> </div>
+          <div class="cell filler-cell"></div>
+      </div>
+
+      <div class="row seamless-row data-row add-top-border"> 
+         <div class="cell first-data-cell"> <label class="label-fixed" for="pfit">PFIT</label> <input type="text" id="pfit" maxlength="5" pattern="[0-9.]*"> </div>
+         <div class="cell"> <label class="label-fixed label-reg" for="exs">EXS</label> <input type="text" id="exs" maxlength="5" pattern="[0-9.]*"> </div>
+         <div class="cell"> <label class="label-fixed" for="bo">BO</label> <input type="text" id="bo" maxlength="5" pattern="[0-9.]*"> </div>
+         <div class="cell"> <label class="label-fixed" for="res">RES</label> <input type="text" id="res" maxlength="5" pattern="[0-9.]*"> </div>
+      </div>
+
+      <div class="row seamless-row data-row add-top-border"> 
+        <div class="cell first-data-cell"> <label class="label-fixed" for="fzfw">FZFW</label> <input type="text" id="fzfw" maxlength="5" pattern="[0-9.]*"> </div>
+        <div class="cell"> <label class="label-fixed label-reg" for="fzfw_du">D/U</label> <input type="text" id="fzfw_du" readonly> </div>
+        <div class="cell"> <label class="label-fixed" for="percent_mac">MACTOW</label> <input type="text" id="percent_mac" maxlength="4" pattern="[0-9.]*"> </div>
+        <div class="cell"> <label class="label-fixed" for="v2">V2</label> <input type="text" id="v2" maxlength="3" pattern="[0-9]*" inputmode="numeric"> </div>
+         <div class="cell"> <label class="label-fixed" for="v2_plus_15">V2+15</label> <input type="text" id="v2_plus_15" readonly> </div>
+      </div>
+
+      <div class="row seamless-row add-top-border">
+        <div class="cell"> <label class="label-fixed" for="sid">SID</label> <input type="text" id="sid"> </div>
+        <div class="cell"> <label class="label-fixed label-reg" for="star">STAR</label> <input type="text" id="star"> </div>
+         <div class="cell" style="gap: 2px; border-left: 1px solid black;">
+            <input type="text" id="opti_climb" maxlength="3" pattern="[0-9]*" inputmode="numeric"> 
+            <span>/</span> 
+            <div class="opti-mach-wrapper">
+                <span class="dot-text">.</span>
+                <input type="text" id="opti_mach" maxlength="2" pattern="[0-9]*" inputmode="numeric">
+                <span class="crz-text">CRZ</span>
+                <label class="crz-check-label"><input type="checkbox" id="crz_check">CRZ</label>
+            </div>
+        </div>
+        <div class="cell" style="gap: 2px; border-left: 1px solid black;">
+            <input type="text" id="opti_desc1" maxlength="3" pattern="[0-9]*" inputmode="numeric"> <span>/</span> <input type="text" id="opti_desc2" maxlength="3" pattern="[0-9]*" inputmode="numeric">
+        </div>
+         <div class="cell filler-cell"></div>
+      </div>
+
+      <div class="row add-top-border"> 
+          <div class="cell remarks-cell"> <textarea id="remarks" placeholder="RMK" rows="3"></textarea> </div>
+          <div class="cell filler-cell"></div> 
+      </div>
+    </div>
+    
+    <div class="button-container">
+        <button id="cloudSaveBtn" class="button btn-green"><i class="fas fa-cloud-upload-alt"></i> Sync</button>
+        <button id="cloudLoadBtn" class="button"><i class="fas fa-cloud-download-alt"></i> Load</button>
+        <button id="saveFileBtn" class="button btn-grey"><i class="fas fa-file-download"></i> Save File</button>
+        <button id="loadFileBtn" class="button btn-grey"><i class="fas fa-file-upload"></i> Load File</button>
+        <button onclick="generateCard()" class="button">Generate Flight Card</button>
+    </div>
+    
+    <p class="footer-text"><i class="fas fa-info-circle"></i> FOR MAXIMUM OFFLINE RELIABILITY: Do not use "Reading List". Tap the Share icon (<i class="fas fa-share-square"></i>) and select "Add to Home Screen". Launch from your Home Screen for a persistent, offline app experience.</p>
+  </div>
+
+  <div id="cardPage" class="page">
+    <div class="heading-container">
+        <h3>Flight Card <i class="fas fa-shield-alt" style="color: #4CAF50; font-size: 12px;" title="Offline Protection Active"></i></h3>
+         <div class="heading-controls">
+             <label class="switch" title="Toggle Day/Night Mode">
+               <input type="checkbox" id="darkModeToggleCard"> <span class="slider round"></span>
+             </label>
+         </div>
+    </div>
+    
+    <div class="form-section flight-card">
+       <div class="row row-1">
+        <div class="cell label-small">
+          <div id="card-flight-number-display"> <label>SQ</label> <span class="data-display" id="card-flightNo"></span> </div>
+        </div>
+        <div class="cell capt-cell">
+          <div class="capt-top">
+            <div class="field"> <label class="label-capt">CAPT</label> <span class="data-display" id="card-capt"></span> </div>
+            <div class="field"> <label>No.</label> <span class="data-display" id="card-staffNo"></span> </div>
+          </div>
+           <div id="card-additional-crew"></div>
+        </div>
+        <div class="cell crew-cell">
+          <label>CREW/PAX</label>
+          <div class="crew-pax-inputs data-display"> <span class="data-display" id="card-crew"></span> <span>/</span> <span class="data-display" id="card-pax"></span> </div>
+        </div>
+        <div class="cell prefix-cell"> <label>(M/2000ft)</label> <div class="prefix-input data-display"> <span>+</span> <span class="data-display" id="card-m2000"></span> </div> </div>
+        <div class="cell prefix-cell"> <label>(P/1000kg)</label> <div class="prefix-input data-display"> <span>+</span> <span class="data-display" id="card-p1000"></span> </div> </div>
+        <div class="cell prefix-cell"> <label>(M/1000kg)</label> <div class="prefix-input data-display"> <span>-</span> <span class="data-display" id="card-m1000"></span> </div> </div>
+      </div>
+      
+      <div class="row no-bottom-border">
+        <div class="cell time-cell"> <label>STD</label> <div class="time-input-container data-display"> <span class="data-display" id="card-std-time"></span><span class="time-suffix">Z</span> <span class="data-display" id="card-std-gmt"></span> <span class="data-display" id="card-std-lt-time"></span><span class="time-suffix">LT</span> <span class="time-suffix">FLT/T</span> <span class="data-display" id="card-flt-t-time"></span> </div> </div>
+        <div class="cell filler-cell"></div>
+      </div>
+      <div class="row">
+        <div class="cell time-cell"> <label>STA</label> <div class="time-input-container data-display"> <span class="data-display" id="card-sta-time"></span><span class="time-suffix">Z</span> <span class="data-display" id="card-sta-gmt"></span> <span class="data-display" id="card-sta-lt-time"></span><span class="time-suffix">LT</span> <span class="time-suffix">BLK/T</span> <span class="data-display" id="card-blk-t-time"></span> </div> </div>
+        <div class="cell filler-cell"></div>
+      </div>
+
+       <div class="row seamless-row format-row active" id="card-default-format-row">
+        <div class="cell"> <label class="label-fixed">PLAN</label> <span class="data-display" id="card-plan"></span> </div>
+        <div class="cell"> <label class="label-fixed label-reg">REG</label> <span class="data-display" id="card-reg"></span> </div>
+        <div class="cell"> <label class="label-right-aligned">GATE</label> <span class="data-display text-blue" id="card-gate"></span> </div>
+        <div class="cell"> <label class="label-right-aligned">INFO</label> <span class="data-display text-blue" id="card-info"></span> </div>
+        <div class="cell"> <label class="label-right-aligned">FL</label> <span class="data-display text-blue" id="card-fl"></span> </div>
+        <div class="cell"> <label class="label-right-aligned">DEST</label> <span class="data-display text-blue" id="card-dest"></span> </div>
+        <div class="cell"> <label class="label-right-aligned">POB</label> <span class="data-display" id="card-pob"></span> </div>
+      </div>
+
+       <div class="row seamless-row format-row" id="card-india-format-row">
+            <div class="cell"> <label>PDC</label> <span class="data-display" id="card-pdc"></span> </div>
+            <div class="cell"> <label class="label-right-aligned">GATE</label> <span class="data-display text-blue" id="card-india_gate"></span> </div>
+            <div class="cell"> <label class="label-right-aligned">ATIS</label> <span class="data-display text-blue" id="card-india_info"></span> </div>
+             <div class="cell"> <label>QNH</label> <span class="data-display" id="card-qnh"></span> </div>
+             <div class="cell"> <span class="data-display" id="card-india_pob"></span> <label>POB, ALL THROUGH SECURITY.</label> </div>
+            <div class="cell filler-cell"></div>
+       </div>
+
+        <!-- CARD VIEW AUSTRALIA -->
+        <div class="row seamless-row format-row" id="card-australia-format-row">
+             <div class="cell"> <label>CLRD</label> <span class="data-display text-blue" id="card-aus_cleared_fpr"></span> <label>FPR</label> </div>
+             <div class="cell"> <span class="data-display text-blue" id="card-aus_departure"></span> <label>DEPARTURE CVS TO</label> </div>
+             <div class="cell"> <span class="data-display" id="card-aus_cvs_ft"></span> <label>FT SQWK</label> </div>
+            <div class="cell"> <span class="data-display" id="card-aus_sqwk"></span> </div>
+            <div class="cell"> <label>DEP FREQ</label> <span class="data-display" id="card-aus_dep_freq"></span> </div>
+            <div class="cell filler-cell"></div>
+        </div>
+
+      <div class="row seamless-row data-row add-top-border">
+        <div class="cell first-data-cell"> <label class="label-fixed">BW</label> <span class="data-display" id="card-bw"></span> </div>
+        <div class="cell"> <label class="label-fixed label-reg">BI</label> <span class="data-display" id="card-bi"></span> </div>
+         <div class="cell filler-cell"></div>
+      </div>
+      <div class="row seamless-row data-row add-top-border">
+        <div class="cell first-data-cell"> <label class="label-fixed">PZFW</label> <span class="data-display" id="card-pzfw"></span> </div>
+        <div class="cell"> <label class="label-fixed label-reg">EZFW</label> <span class="data-display" id="card-ezfw"></span> </div>
+        <div class="cell"> <label class="label-fixed">D/U</label> <span class="data-display" id="card-ezfw_du"></span> </div>
+          <div class="cell filler-cell"></div>
+      </div>
+      <div class="row seamless-row data-row add-top-border">
+         <div class="cell first-data-cell"> <label class="label-fixed">PFIT</label> <span class="data-display" id="card-pfit"></span> </div>
+         <div class="cell"> <label class="label-fixed label-reg">EXS</label> <span class="data-display" id="card-exs"></span> </div>
+         <div class="cell"> <label class="label-fixed">BO</label> <span class="data-display" id="card-bo"></span> </div>
+         <div class="cell"> <label class="label-fixed">RES</label> <span class="data-display" id="card-res"></span> </div>
+      </div>
+      <div class="row seamless-row data-row add-top-border">
+        <div class="cell first-data-cell"> <label class="label-fixed">FZFW</label> <span class="data-display text-red" id="card-fzfw"></span> </div>
+        <div class="cell"> <label class="label-fixed label-reg">D/U</label> <span class="data-display" id="card-fzfw_du"></span> </div>
+        <div class="cell"> <label class="label-fixed">MACTOW</label> <span class="data-display text-red" id="card-percent_mac"></span><span>%</span> </div>
+        <div class="cell"> <label class="label-fixed">V2</label> <span class="data-display" id="card-v2"></span> </div>
+         <div class="cell"> <label class="label-fixed">V2+15</label> <span class="data-display text-red" id="card-v2_plus_15"></span> </div>
+      </div>
+      <div class="row seamless-row add-top-border">
+        <div class="cell"> <label class="label-fixed">SID</label> <span class="data-display" id="card-sid"></span> </div>
+        <div class="cell"> <label class="label-fixed label-reg">STAR</label> <span class="data-display" id="card-star"></span> </div>
+        <div class="cell" style="gap: 2px; border-left: 1px solid black;">
+            <span class="data-display" id="card-opti_climb"></span> 
+            <span>/</span>
+            <span class="data-display" id="card-opti_mach_full"></span>
+        </div>
+        <div class="cell" style="gap: 2px; border-left: 1px solid black;">
+            <span class="data-display" id="card-opti_desc1"></span> <span id="card-opti_desc2_prefix"></span> <span class="data-display" id="card-opti_desc2"></span>
+        </div>
+         <div class="cell filler-cell"></div>
+      </div>
+       <div class="row add-top-border"> <div class="cell remarks-cell"> <span class="data-display" id="card-remarks"></span> </div> <div class="cell filler-cell"></div> </div>
+
+    </div> <div class="button-container">
+        <button onclick="window.print()" class="button">Print</button>
+        <button onclick="goBack()" class="button">Edit</button>
+    </div>
+  </div>
+
+  <script>
+    // --- BACKEND CONFIG ---
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbymVVoJU0wZkPrXgFAE_McA_pf_ttj5GdvA_tklrolGEPkw0WB1rVg0xLDFgXGVH7zg/exec'; 
+
+    // --- ID LISTS ---
+    const savableInputIds = ['flightNo', 'capt', 'staffNo', 'crew', 'pax', 'm2000', 'p1000', 'm1000', 'std-hours', 'std-minutes', 'std-gmt', 'flt-t-hours', 'flt-t-minutes', 'sta-hours', 'sta-minutes', 'sta-gmt', 'plan', 'reg', 'gate', 'info', 'india_gate', 'india_info', 'fl', 'dest', 'bw', 'bi', 'pzfw', 'ezfw', 'pfit', 'exs', 'bo', 'res', 'fzfw', 'percent_mac', 'sid', 'star', 'v2', 'remarks', 'formatSelector', 'pdc', 'qnh', 
+    'aus_cleared_fpr', 'aus_departure', 'aus_cvs_ft', 'aus_sqwk', 'aus_dep_freq',
+    'opti_climb', 'opti_mach', 'opti_desc1', 'opti_desc2', 'crz_check'];
+    const calculatedIds = ['pob', 'india_pob', 'ezfw_du', 'fzfw_du', 'v2_plus_15', 'std-lt-hours', 'std-lt-minutes', 'sta-lt-hours', 'sta-lt-minutes', 'blk-t-hours', 'blk-t-minutes'];
+    
+    // Fallback DB
+    const aircraftDataFallback = {
+        "SCA": { bw: 129763, bi: 39.2 }, "SCB": { bw: 129510, bi: 39.0 },
+        "SCD": { bw: 129200, bi: 39.6 }, "SCE": { bw: 129530, bi: 39.3 },
+        "SCF": { bw: 129797, bi: 40.0 }, "SCG": { bw: 129573, bi: 39.9 },
+        "SCH": { bw: 130290, bi: 39.6 }, "SCI": { bw: 129326, bi: 38.9 },
+        "SCJ": { bw: 129120, bi: 39.4 }, "SCK": { bw: 129055, bi: 40.1 },
+        "SCL": { bw: 129320, bi: 39.6 }, "SCM": { bw: 129150, bi: 38.8 },
+        "SCN": { bw: 129240, bi: 39.3 }, "SCO": { bw: 129360, bi: 39.3 },
+        "SCP": { bw: 129283, bi: 39.4 }, "SCQ": { bw: 129154, bi: 39.4 },
+        "SCR": { bw: 129111, bi: 38.9 }, "SCS": { bw: 129425, bi: 39.3 },
+        "SCT": { bw: 129376, bi: 39.4 }, "SCU": { bw: 129501, bi: 39.3 },
+        "SCV": { bw: 129436, bi: 39.3 }, "SCW": { bw: 129417, bi: 39.5 },
+        "SCY": { bw: 129325, bi: 39.5 }, "SCZ": { bw: 129417, bi: 39.1 },
+        "SDA": { bw: 129340, bi: 39.8 }
+    };
+    let aircraftData = aircraftDataFallback;
+
+    // --- Audio Recording Variables ---
+    let mediaRecorder;
+    let audioChunks = [];
+    
+    // --- Anti-Suspend Background Audio ---
+    let heartbeatAudio = null;
+
+    // ==========================================
+    // PULL OUT ALL THE STOPS: ANTI-REFRESH LOGIC
+    // ==========================================
+    function initAntiRefreshDefenses() {
+        // 1. History Trap: Prevents Accidental Back/Forward Swipe Navigations
+        window.history.pushState({page: 1}, "", "");
+        window.addEventListener("popstate", function(event) {
+            window.history.pushState({page: 1}, "", "");
+        });
+
+        // 2. Unload Warning (Already present but enforced)
+        window.addEventListener('beforeunload', function (e) {
+            e.preventDefault();
+            e.returnValue = 'Are you sure you want to leave? Unsaved changes may be lost.';
+        });
+
+        // 3. Audio Heartbeat (Tricks iOS into keeping Safari tab alive in background)
+        // Starts on very first user interaction
+        const startHeartbeat = () => {
+            if(!heartbeatAudio) {
+                heartbeatAudio = document.createElement('audio');
+                // Extremely tiny, silent looping audio track (1 sample)
+                heartbeatAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+                heartbeatAudio.loop = true;
+                heartbeatAudio.play().catch(e => console.log("Heartbeat waiting..."));
+            }
+            document.removeEventListener('touchstart', startHeartbeat);
+            document.removeEventListener('click', startHeartbeat);
+        };
+        document.addEventListener('touchstart', startHeartbeat, {once: true});
+        document.addEventListener('click', startHeartbeat, {once: true});
+
+        // 4. Wake Lock API: Ask device not to dim/sleep the screen
+        let wakeLock = null;
+        const requestWakeLock = async () => {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) { console.log("WakeLock prevented"); }
+            }
+        };
+        document.addEventListener('visibilitychange', () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                requestWakeLock();
+            }
+            // Auto-save EVERYTHING immediately before going to background to freeze state
+            if(document.visibilityState === 'hidden') saveAllToLocalStorage();
+        });
+        requestWakeLock(); // Try initially
+    }
+    // ==========================================
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initAntiRefreshDefenses();
+        loadFromLocalStorage();
+        setupEventListeners();
+        setupAudioRecorder();
+        checkConnection(); // Initial ping
+        setInterval(checkConnection, 60000); // Check every 60s
+        if(navigator.onLine) fetchAircraftDB();
+    });
+
+    async function checkConnection() {
+        const ind = document.getElementById('sync-status');
+        if (!navigator.onLine) {
+            ind.className = 'offline';
+            ind.innerHTML = '<i class="fas fa-ban"></i> <span>Offline</span>';
+            return;
+        }
+
+        ind.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> <span>Checking...</span>';
+        
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            // Ping the backend.
+            await fetch(`${WEB_APP_URL}?action=PING`, { 
+                method: 'GET', 
+                signal: controller.signal,
+                mode: 'no-cors'
+            });
+            clearTimeout(timeoutId);
+            
+            ind.className = 'synced';
+            ind.innerHTML = '<i class="fas fa-check-circle"></i> <span>Connected</span>';
+        } catch (error) {
+            ind.className = 'error';
+            ind.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>Sync Err</span>';
+        }
+    }
+
+    async function fetchAircraftDB() {
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=GET_AIRCRAFT_DB`);
+            const json = await res.json();
+            if(json.status === 'success') {
+                aircraftData = { ...aircraftDataFallback, ...json.data };
+            }
+        } catch(e) { console.error("DB Fetch Error", e); }
+    }
+
+    async function saveToCloud() {
+        const btn = document.getElementById('cloudSaveBtn');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; btn.disabled = true;
+
+        const data = getAllFormData();
+        
+        if(data.reg && data.bw && data.bi) {
+            const existing = aircraftData[data.reg];
+            if(!existing || existing.bw != data.bw || existing.bi != data.bi) {
+                aircraftData[data.reg] = { bw: data.bw, bi: data.bi };
+                 fetch(WEB_APP_URL, { 
+                     method: 'POST', 
+                     body: new URLSearchParams({ action: 'UPDATE_AIRCRAFT', reg: data.reg, bw: data.bw, bi: data.bi }) 
+                 });
+            }
+        }
+
+        try {
+            const payload = new URLSearchParams({ action: 'SAVE_FLIGHT', data: JSON.stringify(data) });
+            await fetch(WEB_APP_URL, { method: 'POST', body: payload });
+            alert("Flight Log Saved to Cloud!");
+            checkConnection(); 
+        } catch(e) { 
+            alert("Save Failed. Check internet connection."); 
+            checkConnection();
+        } 
+        finally { btn.innerHTML = origText; btn.disabled = false; }
+    }
+
+    async function loadFlightList() {
+        const container = document.getElementById('flight-list-container');
+        document.getElementById('loadModal').style.display = 'flex';
+        container.innerHTML = 'Fetching list...';
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=GET_FLIGHT_LIST`);
+            const json = await res.json();
+            if(json.data.length === 0) { container.innerHTML = "No flights found."; return; }
+            let html = '';
+            json.data.forEach(row => {
+                const date = row[1]; const flight = row[2]; const rawData = row[4];
+                const jsonStr = JSON.stringify(JSON.parse(rawData)).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+                html += `
+                <div class="modal-list-item">
+                    <span class="flight-info" onclick='loadSelectedFlight(${jsonStr})'>
+                        <strong>SQ${flight}</strong> - ${date}
+                    </span>
+                    <span class="delete-btn" onclick="deleteFlight('${flight}', '${date}', this.parentNode)">
+                        <i class="fas fa-trash"></i>
+                    </span>
+                </div>`;
+            });
+            container.innerHTML = html;
+        } catch(e) { container.innerHTML = "Error fetching list. Check connection."; checkConnection(); }
+    }
+
+    async function deleteFlight(flightNo, date, listElement) {
+        if(!confirm(`Delete log for SQ${flightNo} on ${date}?`)) return;
+        
+        listElement.style.opacity = '0.5';
+        try {
+            const payload = new URLSearchParams({ 
+                action: 'DELETE_FLIGHT', 
+                flightNo: flightNo, 
+                date: date 
+            });
+            await fetch(WEB_APP_URL, { method: 'POST', body: payload });
+            listElement.remove();
+        } catch(e) {
+            alert("Delete failed.");
+            listElement.style.opacity = '1';
+        }
+    }
+
+    function loadSelectedFlight(data) {
+        if(confirm("Load this flight? Current unsaved data will be overwritten.")) {
+            savableInputIds.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) {
+                    if (el.type === 'checkbox') el.checked = data[id];
+                    else el.value = data[id] || '';
+                }
+            });
+            const crewContainer = document.getElementById('additional-crew-container');
+            crewContainer.innerHTML = '';
+            if (data.crewMembers && data.crewMembers.length > 0) data.crewMembers.forEach(addCrewRow); else addCrewRow();
+            
+            toggleCrz(document.getElementById('crz_check').checked);
+            saveAllToLocalStorage();
+            updateAllCalculatedFields();
+            document.getElementById('formatSelector').dispatchEvent(new Event('change'));
+            closeModal();
+        }
+    }
+
+    function saveDataToFile() {
+        const data = getAllFormData();
+        const flightNo = data.flightNo || '000';
+        const now = new Date();
+        const filename = `SQ${flightNo}_${now.getDate()}${now.getMonth()+1}${now.getFullYear().toString().slice(-2)}.78x`;
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/octet-stream' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function loadDataFromFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try { loadSelectedFlight(JSON.parse(e.target.result)); } catch(error) { alert("Error parsing file."); }
+        };
+        reader.readAsText(file);
+        event.target.value = null;
+    }
+
+    async function fetchTimes() {
+        const btn = document.getElementById('fetchTimesBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+        const fNo = document.getElementById('flightNo').value;
+        if (!fNo) { alert("Please enter a Flight Number (e.g., 600)"); btn.innerHTML = originalText; btn.disabled = false; return; }
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=FETCH_TIMES&flightNo=${fNo}`);
+            const json = await res.json();
+            if(json.status === 'success') {
+                const d = json.data;
+                if(d.std_hours) document.getElementById('std-hours').value = d.std_hours;
+                if(d.std_minutes) document.getElementById('std-minutes').value = d.std_minutes;
+                if(d.std_gmt) document.getElementById('std-gmt').value = d.std_gmt;
+                if(d.sta_hours) document.getElementById('sta-hours').value = d.sta_hours;
+                if(d.sta_minutes) document.getElementById('sta-minutes').value = d.sta_minutes;
+                if(d.sta_gmt) document.getElementById('sta-gmt').value = d.sta_gmt;
+                document.getElementById('std-hours').dispatchEvent(new Event('input'));
+                document.getElementById('std-gmt').dispatchEvent(new Event('change'));
+                document.getElementById('sta-hours').dispatchEvent(new Event('input'));
+                document.getElementById('sta-gmt').dispatchEvent(new Event('change'));
+                alert(`Found SQ${fNo.replace('SQ','')}: Times updated.`);
+            } else { alert("Flight not found or API error."); }
+        } catch(e) { alert("Connection failed."); } 
+        finally { btn.innerHTML = originalText; btn.disabled = false; }
+    }
+
+    function getAllFormData() {
+        const data = {};
+        savableInputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if(el.type === 'checkbox') data[id] = el.checked;
+                else data[id] = el.value;
+            }
+        });
+        const crewData = [];
+        document.querySelectorAll('#additional-crew-container .crew-row').forEach(row => {
+            const type = row.querySelector('.crew-type-select').value;
+            const name = row.querySelector('.crew-name-input').value;
+            crewData.push({ type, name });
+        });
+        data.crewMembers = crewData;
+        return data;
+    }
+
+    function saveAllToLocalStorage() {
+        // Freeze everything so a reload drops us exactly here.
+        const data = getAllFormData();
+        savableInputIds.forEach(id => {
+            if(data[id] !== undefined) localStorage.setItem(id, data[id]);
+        });
+        localStorage.setItem('crewMembers', JSON.stringify(data.crewMembers));
+        
+        // Also save UI state
+        localStorage.setItem('isCardPageVisible', document.getElementById('cardPage').classList.contains('active'));
+        localStorage.setItem('isDarkMode', document.getElementById('darkModeToggle').checked);
+    }
+
+    function loadFromLocalStorage() {
+        // Restore all text inputs
+        savableInputIds.forEach(id => {
+            const val = localStorage.getItem(id);
+            const el = document.getElementById(id);
+            if(val !== null && el) {
+                if(el.type === 'checkbox') el.checked = (val === 'true');
+                else el.value = val;
+            }
+        });
+        
+        // Restore crew rows
+        const savedCrew = localStorage.getItem('crewMembers');
+        try { 
+            const parsed = JSON.parse(savedCrew);
+            if(parsed && parsed.length > 0) parsed.forEach(addCrewRow); else addCrewRow();
+        } catch(e) { addCrewRow(); }
+        
+        // Restore CRZ toggle state
+        toggleCrz(document.getElementById('crz_check').checked);
+        updateAllCalculatedFields();
+        document.getElementById('formatSelector').dispatchEvent(new Event('change'));
+
+        // Restore Dark Mode
+        const isDark = localStorage.getItem('isDarkMode') === 'true';
+        if(isDark) toggleDarkMode(true);
+
+        // Restore active page (if they were on the card page when it crashed, drop them right back)
+        const isCardActive = localStorage.getItem('isCardPageVisible') === 'true';
+        if(isCardActive) generateCard();
+    }
+
+    function updateAllCalculatedFields() {
+        calculatePOB(); calculateEZFW_DU(); calculateFZFW_DU(); calculateV2Plus15();
+        updateLocalTime('std-hours', 'std-minutes', 'std-gmt', 'std-lt-hours', 'std-lt-minutes');
+        updateLocalTime('sta-hours', 'sta-minutes', 'sta-gmt', 'sta-lt-hours', 'sta-lt-minutes');
+        updateBlockTime();
+    }
+    
+    function calculateLocalTime(h, m, gmt) {
+      if (!h || !m || !gmt) return { hours: '', minutes: '' };
+      let total = parseInt(h) * 60 + parseInt(m);
+      const parts = gmt.split('.');
+      let offset = parseInt(parts[0]) * 60;
+      if (parts.length > 1) offset += (parseInt(parts[0]) >= 0 ? 1 : -1) * Math.round(parseFloat('0.' + parts[1]) * 60);
+      total += offset;
+      if (total < 0) total += 1440; if (total >= 1440) total -= 1440;
+      return { hours: Math.floor(total/60).toString().padStart(2,'0'), minutes: (total%60).toString().padStart(2,'0') };
+    }
+    function updateLocalTime(hId, mId, gmtId, thId, tmId) {
+        const time = calculateLocalTime(document.getElementById(hId).value, document.getElementById(mId).value, document.getElementById(gmtId).value);
+        document.getElementById(thId).value = time.hours; document.getElementById(tmId).value = time.minutes;
+    }
+    function updateBlockTime() {
+        const sH = document.getElementById('std-hours').value, sM = document.getElementById('std-minutes').value;
+        const eH = document.getElementById('sta-hours').value, eM = document.getElementById('sta-minutes').value;
+        if(sH && sM && eH && eM) {
+            let diff = (parseInt(eH)*60 + parseInt(eM)) - (parseInt(sH)*60 + parseInt(sM));
+            if(diff < 0) diff += 1440;
+            document.getElementById('blk-t-hours').value = Math.floor(diff/60).toString().padStart(2,'0');
+            document.getElementById('blk-t-minutes').value = (diff%60).toString().padStart(2,'0');
+        }
+    }
+    function calculatePOB() {
+        const pob = (parseInt(document.getElementById('crew').value)||0) + (parseInt(document.getElementById('pax').value)||0);
+        const val = pob > 0 ? pob : '';
+        document.getElementById('pob').value = val;
+        if(document.getElementById('india_pob')) document.getElementById('india_pob').value = val;
+    }
+    function calculateEZFW_DU() {
+        const p = parseFloat(document.getElementById('pzfw').value)||0, e = parseFloat(document.getElementById('ezfw').value)||0;
+        const du = (e - p).toFixed(1);
+        document.getElementById('ezfw_du').value = (document.getElementById('pzfw').value && document.getElementById('ezfw').value) ? (du > 0 ? `+${du}` : (du==0 ? '' : du)) : '';
+    }
+    function calculateFZFW_DU() {
+        const f = parseFloat(document.getElementById('fzfw').value)||0, e = parseFloat(document.getElementById('ezfw').value)||0;
+        const du = (f - e).toFixed(1);
+        document.getElementById('fzfw_du').value = (document.getElementById('fzfw').value && document.getElementById('ezfw').value) ? (du > 0 ? `+${du}` : (du==0 ? '' : du)) : '';
+    }
+    function calculateV2Plus15() {
+        const v = parseInt(document.getElementById('v2').value);
+        document.getElementById('v2_plus_15').value = isNaN(v) ? '' : v+15;
+    }
+
+    function addCrewRow(data = { type: 'FZ', name: '' }) {
+        const div = document.createElement('div'); div.className = 'crew-row';
+        div.innerHTML = `<select class="crew-type-select"><option value="FZ">FZ</option><option value="SCO">SCO</option><option value="OBS">OBS</option><option value="IFM">IFM</option><option value="WIA">WIA</option><option value="CSS/CS">CSS/CS</option><option value="LSS/LS">LSS/LS</option><option value="FSS/FS">FSS/FS</option></select>
+                         <input type="text" class="crew-name-input" placeholder="Name" value="${data.name}">
+                         <button type="button" class="crew-control-btn remove-crew-btn" onclick="this.parentElement.remove(); saveAllToLocalStorage();">-</button>
+                         <button type="button" class="crew-control-btn add-crew-btn" onclick="addCrewRow(); saveAllToLocalStorage();">+</button>`;
+        div.querySelector('select').value = data.type;
+        div.querySelectorAll('input, select').forEach(el => el.addEventListener('input', saveAllToLocalStorage));
+        document.getElementById('additional-crew-container').appendChild(div);
+    }
+    
+    function closeModal() { document.getElementById('loadModal').style.display = 'none'; }
+    
+    function goBack() { 
+        document.getElementById("cardPage").classList.remove("active"); 
+        document.getElementById("formPage").classList.add("active");
+        if(document.getElementById('darkModeToggleCard').checked != document.getElementById('darkModeToggle').checked) {
+            document.getElementById('darkModeToggle').checked = document.getElementById('darkModeToggleCard').checked;
+        }
+        saveAllToLocalStorage(); // freeze state change
+    }
+    
+    function toggleDarkMode(isNight) {
+        document.body.classList.toggle('night-mode', isNight);
+        document.getElementById('darkModeToggle').checked = isNight;
+        document.getElementById('darkModeToggleCard').checked = isNight;
+        saveAllToLocalStorage();
+    }
+    
+    function generateCard() {
+        const data = getAllFormData();
+        ['flightNo','capt','staffNo','crew','pax','m2000','p1000','m1000','bw','bi','pzfw','ezfw','ezfw_du','pfit','exs','bo','res','fzfw','fzfw_du','percent_mac','v2','v2_plus_15','sid','star','remarks','opti_climb','opti_mach','opti_desc1','opti_desc2','plan','reg','gate','info','fl','dest','pob','pdc','qnh',
+        'aus_cleared_fpr', 'aus_departure', 'aus_cvs_ft', 'aus_sqwk', 'aus_dep_freq', 'india_gate', 'india_info', 'india_pob'].forEach(id => {
+            const el = document.getElementById('card-'+id);
+            if(el) { const val = data[id] || ''; el.textContent = val; }
+        });
+        
+        const fmt = (h, m) => (h && m) ? `${h}:${m}` : '';
+        document.getElementById('card-std-time').textContent = fmt(data['std-hours'], data['std-minutes']);
+        document.getElementById('card-std-gmt').textContent = data['std-gmt'] ? `(GMT${data['std-gmt']})` : '';
+        document.getElementById('card-std-lt-time').textContent = fmt(data['std-lt-hours'], data['std-lt-minutes']);
+        document.getElementById('card-flt-t-time').textContent = fmt(data['flt-t-hours'], data['flt-t-minutes']);
+        document.getElementById('card-sta-time').textContent = fmt(data['sta-hours'], data['sta-minutes']);
+        document.getElementById('card-sta-gmt').textContent = data['sta-gmt'] ? `(GMT${data['sta-gmt']})` : '';
+        document.getElementById('card-sta-lt-time').textContent = fmt(data['sta-lt-hours'], data['sta-lt-minutes']);
+        document.getElementById('card-blk-t-time').textContent = fmt(data['blk-t-hours'], data['blk-t-minutes']);
+
+        const isCrz = document.getElementById('crz_check').checked;
+        document.getElementById('card-opti_mach_full').textContent = isCrz ? '.CRZ' : (data.opti_mach ? `.${data.opti_mach}` : '');
+
+        document.getElementById('card-opti_desc2_prefix').textContent = (data.opti_desc1 && data.opti_desc2) ? '/' : '';
+
+        document.querySelectorAll('#cardPage .format-row').forEach(r => r.classList.remove('active'));
+        document.getElementById(`card-${data.formatSelector}-format-row`).classList.add('active');
+
+        const cc = document.getElementById('card-additional-crew'); cc.innerHTML = '';
+        data.crewMembers.forEach(c => {
+             cc.innerHTML += `<div class="card-crew-row"><span class="data-display card-crew-type">${c.type}</span><span class="data-display card-crew-name">${c.name}</span></div>`;
+        });
+
+        document.getElementById("formPage").classList.remove("active");
+        document.getElementById("cardPage").classList.add("active");
+        saveAllToLocalStorage(); // freeze state change
+    }
+
+    function toggleCrz(isChecked) {
+        const machInput = document.getElementById('opti_mach');
+        const dotText = document.querySelector('.dot-text');
+        const crzText = document.querySelector('.crz-text');
+        if (isChecked) { machInput.style.display = 'none'; dotText.style.display = 'none'; crzText.style.display = 'inline'; } 
+        else { machInput.style.display = 'inline-block'; dotText.style.display = 'inline'; crzText.style.display = 'none'; }
+    }
+
+    function setupAudioRecorder() {
+        const recordBtn = document.getElementById('recordBtn');
+        recordBtn.addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                recordBtn.classList.remove('recording');
+                if(heartbeatAudio) heartbeatAudio.play(); // resume background hack
+                return;
+            }
+
+            try {
+                if(heartbeatAudio) heartbeatAudio.pause(); // prevent interference
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const a = document.createElement('a');
+                    a.href = audioUrl;
+                    
+                    const now = new Date();
+                    const dStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+                    const tStr = `${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
+                    a.download = `Audio_Memo_${dStr}_${tStr}.webm`;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                recordBtn.classList.add('recording');
+            } catch (err) {
+                console.error("Microphone error:", err);
+                alert("Microphone access denied or unavailable.");
+                if(heartbeatAudio) heartbeatAudio.play(); // resume if failed
+            }
+        });
+    }
+
+    function setupEventListeners() {
+        function autoTab(currentElId, nextElId) {
+          const currentEl = document.getElementById(currentElId);
+          if(!currentEl) return;
+          currentEl.addEventListener('input', () => {
+              if (currentEl.maxLength > 0 && currentEl.value.length >= currentEl.maxLength) {
+                  const nextEl = document.getElementById(nextElId);
+                  if(nextEl) nextEl.focus();
+              }
+          });
+        }
+        
+        autoTab('plan', 'reg'); autoTab('reg', 'gate');
+        autoTab('gate', 'info'); autoTab('fl', 'dest');
+        autoTab('pdc', 'qnh');
+        autoTab('aus_cleared_fpr', 'aus_departure');
+        autoTab('opti_climb', 'opti_mach'); autoTab('opti_desc1', 'opti_desc2');
+        autoTab('std-hours', 'std-minutes'); autoTab('flt-t-hours', 'flt-t-minutes'); autoTab('sta-hours', 'sta-minutes');
+
+        document.querySelectorAll('input').forEach(el => {
+            if(el.id.includes('hours') || el.id.includes('minutes') || el.id === 'flightNo' || el.id === 'plan' || el.id === 'bw' || el.id === 'fl' || el.id === 'v2') {
+                el.addEventListener('input', function() { this.value = this.value.replace(/[^0-9]/g, ''); });
+            }
+            if(el.id === 'reg' || el.id === 'sid' || el.id === 'star' || el.id === 'dest' || el.id.includes('aus_cleared') || el.id === 'aus_departure' || el.id === 'gate' || el.id === 'india_gate') {
+                el.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
+            }
+        });
+
+        document.getElementById('reg').addEventListener('input', function() {
+            this.value = this.value.slice(0,3);
+            if(aircraftData[this.value]) {
+                document.getElementById('bw').value = aircraftData[this.value].bw;
+                document.getElementById('bi').value = aircraftData[this.value].bi;
+            }
+            saveAllToLocalStorage();
+        });
+
+        document.getElementById('crz_check').addEventListener('change', function() { toggleCrz(this.checked); saveAllToLocalStorage(); });
+        document.getElementById('bw').addEventListener('change', () => saveAllToLocalStorage());
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('input', () => {
+                if(el.id.startsWith('std') || el.id.startsWith('sta')) updateLocalTime(el.id.startsWith('std')?'std-hours':'sta-hours', el.id.startsWith('std')?'std-minutes':'sta-minutes', el.id.startsWith('std')?'std-gmt':'sta-gmt', el.id.startsWith('std')?'std-lt-hours':'sta-lt-hours', el.id.startsWith('std')?'std-lt-minutes':'sta-lt-minutes');
+                if(el.id.includes('hours') || el.id.includes('minutes')) updateBlockTime();
+                if(['pzfw','ezfw','fzfw'].includes(el.id)) { calculateEZFW_DU(); calculateFZFW_DU(); }
+                if(el.id === 'v2') calculateV2Plus15();
+                if(el.id === 'crew' || el.id === 'pax') calculatePOB();
+                saveAllToLocalStorage();
+            });
+        });
+
+        document.getElementById('cloudSaveBtn').addEventListener('click', saveToCloud);
+        document.getElementById('cloudLoadBtn').addEventListener('click', loadFlightList);
+        document.getElementById('saveFileBtn').addEventListener('click', saveDataToFile);
+        document.getElementById('loadFileBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+        document.getElementById('fileInput').addEventListener('change', loadDataFromFile);
+        document.getElementById('fetchTimesBtn').addEventListener('click', fetchTimes);
+        
+        document.getElementById('purgeButton').addEventListener('click', () => {
+            if(confirm("Clear Data?")) {
+                savableInputIds.forEach(id => { if(document.getElementById(id)) {
+                    const el = document.getElementById(id);
+                    if(el.type === 'checkbox') el.checked = false;
+                    else el.value = ''; 
+                }});
+                localStorage.removeItem('activePage');
+                document.getElementById('additional-crew-container').innerHTML = ''; addCrewRow();
+                toggleCrz(false);
+                updateAllCalculatedFields();
+                saveAllToLocalStorage();
+            }
+        });
+        
+        document.getElementById('darkModeToggle').addEventListener('change', e => toggleDarkMode(e.target.checked));
+        document.getElementById('darkModeToggleCard').addEventListener('change', e => toggleDarkMode(e.target.checked));
+        
+        document.getElementById('formatSelector').addEventListener('change', function() {
+            document.querySelectorAll('#formPage .format-row').forEach(r => r.classList.remove('active'));
+            document.getElementById(`${this.value}-format-row`).classList.add('active');
+            saveAllToLocalStorage();
+        });
+    }
+  </script>
+</body>
+</html>
