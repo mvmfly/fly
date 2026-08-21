@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIA Latest COT Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151f32',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        /* Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #10b981;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #10b981;
+        }
+        
+        /* Hide arrows on number inputs */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-slate-900 text-gray-800 transition-colors duration-300 min-h-screen font-sans antialiased flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-white dark:bg-slate-850 shadow-sm z-20 transition-colors duration-300 sticky top-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <span class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+                        Latest COT Calculator
+                    </span>
+                    <span class="hidden sm:inline-block px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                        Acclimatised
+                    </span>
+                </div>
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition-colors">
+                    <svg id="sun-icon" class="w-6 h-6 text-yellow-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <svg id="moon-icon" class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pb-20">
+        
+        <!-- Left Column: Inputs (Naturally scrolling) -->
+        <div class="lg:col-span-6 flex flex-col gap-5">
+            
+            <!-- Flight Rules & Report Time -->
+            <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm p-5 transition-colors duration-300">
+                <div class="flex justify-between items-end mb-4">
+                    <h2 class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">Duty Details</h2>
+                </div>
+
+                <!-- Flight Type Toggle -->
+                <div class="mb-5">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Type</label>
+                    <div class="flex rounded-lg shadow-sm">
+                        <button id="btnNonUlr" onclick="setFlightType(false)" class="w-1/2 py-2 text-sm font-bold rounded-l-lg bg-blue-600 text-white shadow-md focus:outline-none transition-colors">Non-ULR</button>
+                        <button id="btnUlr" onclick="setFlightType(true)" class="w-1/2 py-2 text-sm font-bold rounded-r-lg bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 focus:outline-none transition-colors">ULR</button>
+                    </div>
+                </div>
+                
+                <!-- Report Time -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Report Time (Local)</label>
+                    <input type="time" id="reportTime" class="block w-full text-3xl font-mono bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:text-white p-3 shadow-sm transition-colors" value="06:00">
+                </div>
+            </div>
+
+            <!-- Dynamic Sectors Configuration -->
+            <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm p-5 transition-colors duration-300">
+                <div class="flex justify-between items-end mb-4">
+                    <h2 class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">Sector Configuration</h2>
+                </div>
+
+                <!-- Sectors Toggle (Non-ULR Only) -->
+                <div id="sectSectorsToggle" class="mb-5">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Number of Sectors</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="setSectors(1)" class="sector-btn bg-blue-600 text-white py-3 rounded-lg font-bold shadow-md hover:bg-blue-700 transition-all active:scale-95" data-val="1">1</button>
+                        <button onclick="setSectors(2)" class="sector-btn bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 py-3 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-slate-600 transition-all active:scale-95" data-val="2">2</button>
+                        <button onclick="setSectors(3)" class="sector-btn bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 py-3 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-slate-600 transition-all active:scale-95" data-val="3">3</button>
+                        <button onclick="setSectors(4)" class="sector-btn bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 py-3 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-slate-600 transition-all active:scale-95" data-val="4">4+</button>
+                    </div>
+                    <input type="hidden" id="sectors" value="1">
+                </div>
+
+                <!-- Scheduled FDP (ULR Only) -->
+                <div id="sectUlrConfig" class="hidden mb-5">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex justify-between">
+                        <span>Scheduled FDP</span>
+                        <span class="text-xs text-blue-500 dark:text-blue-400 font-normal mt-0.5">Base = max(Scheduled, 18h)</span>
+                    </label>
+                    <div class="flex gap-3 mb-6">
+                        <div class="relative w-1/2">
+                            <input type="number" id="schedFDPHours" min="0" max="30" class="global-input block w-full text-xl font-mono bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:text-white p-3 text-center shadow-sm" value="18">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">HRS</span>
+                        </div>
+                        <div class="relative w-1/2">
+                            <input type="number" id="schedFDPMins" min="0" max="59" class="global-input block w-full text-xl font-mono bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:text-white p-3 text-center shadow-sm" value="00">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">MIN</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">ULR Flight Details</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Flight Time (EET)</label>
+                                <div class="flex gap-2">
+                                    <div class="relative w-1/2">
+                                        <input type="number" id="flightH_ulr" min="0" max="25" class="global-input block w-full text-lg font-mono bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500 dark:text-white p-2 text-center shadow-sm" value="16">
+                                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-[9px] font-bold">HR</span>
+                                    </div>
+                                    <div class="relative w-1/2">
+                                        <input type="number" id="flightM_ulr" min="0" max="59" class="global-input block w-full text-lg font-mono bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500 dark:text-white p-2 text-center shadow-sm" value="30">
+                                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-[9px] font-bold">MIN</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ground Time (Taxi)</label>
+                                <div class="relative w-full">
+                                    <input type="number" id="groundM_ulr" min="0" max="300" class="global-input block w-full text-lg font-mono bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500 dark:text-white p-2 text-center shadow-sm" value="18">
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[9px] font-bold">MIN</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Container for Multiple Sectors (Non-ULR) -->
+                <div id="dynamicSectorsContainer" class="flex flex-col gap-2 mt-2">
+                    <!-- Javascript will inject sectors and transit inputs here -->
+                </div>
+            </div>
+
+            <!-- Crew & Rest Options -->
+            <div id="sectCrewRest" class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm p-5 transition-colors duration-300">
+                <h2 class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold mb-4">Rest & Complement</h2>
+                
+                <!-- Crew Complement (Non-ULR Only) -->
+                <div id="sectCrew" class="mb-5">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Crew Complement</label>
+                    <select id="crewComplement" class="global-input block w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-3">
+                        <option value="std">Standard (2 Pilots)</option>
+                        <option value="aug3">3 Pilots (Augmented)</option>
+                        <option value="aug4">4 Pilots (Double Crew)</option>
+                    </select>
+                </div>
+
+                <!-- Split Duty / Ground Break -->
+                <div class="mb-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex justify-between">
+                        <span>Split Duty (Ground Break)</span>
+                        <span class="text-xs text-gray-400 font-normal">Adds 50% of break to FDP</span>
+                    </label>
+                    <div class="flex gap-3 items-center">
+                        <div class="relative w-full">
+                            <input type="number" id="breakHours" min="0" max="12" step="0.5" class="global-input block w-full text-xl font-mono bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:text-white p-3 pl-4 shadow-sm" placeholder="0">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">HOURS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discretion -->
+            <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm p-5 transition-colors duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-900 dark:text-white">Commander's Discretion</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Extend max FDP by 3 hours</p>
+                    </div>
+                    <div class="relative inline-block w-12 align-middle select-none">
+                        <input type="checkbox" id="discretionToggle" class="global-input toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 transition-all duration-300"/>
+                        <label for="discretionToggle" class="toggle-label block overflow-hidden h-7 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Results (Sticky on Large Screens) -->
+        <div class="lg:col-span-6 lg:sticky lg:top-24 flex flex-col gap-5">
+            
+            <!-- Latest COT Card -->
+            <div class="bg-blue-600 dark:bg-blue-800 rounded-2xl shadow-xl p-6 lg:p-10 text-white flex flex-col justify-center items-center relative overflow-hidden transition-colors duration-300 min-h-[250px]">
+                <!-- Background Pattern -->
+                <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 24px 24px;"></div>
+                
+                <h2 class="text-blue-200 uppercase tracking-widest text-xs lg:text-sm font-bold mb-3 z-10 text-center">Latest Permissible</h2>
+                <h1 class="text-6xl lg:text-8xl font-mono font-bold tracking-tighter mb-3 z-10" id="latestCotDisplay">--:--</h1>
+                <p class="text-blue-100 font-medium text-lg z-10 text-center">Chocks Off Time (Sector 1)</p>
+
+                <!-- Status Badges -->
+                <div class="absolute top-4 right-4 flex flex-col gap-2 items-end z-20">
+                    <div id="ulrBadge" class="hidden bg-purple-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide shadow-sm border border-purple-400">
+                        ULR Flight
+                    </div>
+                    <div id="discretionBadge" class="hidden bg-red-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide shadow-sm border border-red-400">
+                        +3H Discretion
+                    </div>
+                    <div id="augmentedBadge" class="hidden bg-indigo-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide shadow-sm border border-indigo-400">
+                        Augmented
+                    </div>
+                    <div id="splitBadge" class="hidden bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide shadow-sm border border-emerald-400">
+                        Split Duty
+                    </div>
+                </div>
+            </div>
+
+            <!-- Secondary Metrics -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                <!-- Max Duty End -->
+                <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm p-4 flex flex-col justify-center items-center border-l-[6px] border-orange-500 py-6 transition-colors duration-300">
+                    <p class="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">Max Duty End</p>
+                    <div class="text-3xl lg:text-4xl font-mono font-bold text-gray-900 dark:text-white" id="dutyEndDisplay">--:--</div>
+                    <p class="text-gray-400 text-xs mt-1">Final On Chocks</p>
+                </div>
+
+                <!-- Max FDP Limit -->
+                <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm p-4 flex flex-col justify-center items-center border-l-[6px] border-emerald-500 py-6 transition-colors duration-300">
+                    <p class="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">Permissible FDP</p>
+                    <div class="text-3xl lg:text-4xl font-mono font-bold text-gray-900 dark:text-white" id="maxFdpDisplay">--:--</div>
+                    <p class="text-emerald-600 dark:text-emerald-400 text-xs mt-1 font-medium text-center leading-tight px-2" id="fdpDetailText">Standard</p>
+                </div>
+            </div>
+
+            <p class="text-[10px] text-center text-gray-400 dark:text-gray-600 mt-2 px-4">
+                Reflects latest FSI 25-32 limits. 18 mins planning ground time pre-populated per sector.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        // Standard unaugmented limits CAAS (Start Time -> Limits for Sectors 1, 2, 3, 4+)
+        const standardTable = [
+            { start: 0, end: 6,     limits: [11.00, 10.25, 9.50, 9.00] },
+            { start: 6, end: 8,     limits: [13.00, 12.25, 11.50, 10.75] },
+            { start: 8, end: 15,    limits: [14.00, 13.25, 12.50, 11.75] },
+            { start: 15, end: 22,   limits: [13.00, 12.25, 11.50, 10.75] },
+            { start: 22, end: 24,   limits: [11.00, 10.25, 9.50, 9.00] } 
+        ];
+
+        // --- STATE ---
+        let isUlrMode = false;
+
+        // --- DOM ELEMENTS ---
+        const els = {
+            btnNonUlr: document.getElementById('btnNonUlr'),
+            btnUlr: document.getElementById('btnUlr'),
+            sectSectorsToggle: document.getElementById('sectSectorsToggle'),
+            sectUlrConfig: document.getElementById('sectUlrConfig'),
+            sectCrew: document.getElementById('sectCrew'),
+            dynamicSectorsContainer: document.getElementById('dynamicSectorsContainer'),
+            
+            reportTime: document.getElementById('reportTime'),
+            schedFDPHours: document.getElementById('schedFDPHours'),
+            schedFDPMins: document.getElementById('schedFDPMins'),
+            
+            sectorsInput: document.getElementById('sectors'),
+            crew: document.getElementById('crewComplement'),
+            breakH: document.getElementById('breakHours'),
+            discretion: document.getElementById('discretionToggle'),
+            
+            displayCOT: document.getElementById('latestCotDisplay'),
+            displayDutyEnd: document.getElementById('dutyEndDisplay'),
+            displayMaxFDP: document.getElementById('maxFdpDisplay'),
+            displayFDPDetail: document.getElementById('fdpDetailText'),
+            
+            badges: {
+                ulr: document.getElementById('ulrBadge'),
+                disc: document.getElementById('discretionBadge'),
+                aug: document.getElementById('augmentedBadge'),
+                split: document.getElementById('splitBadge')
+            },
+            
+            sectorBtns: document.querySelectorAll('.sector-btn'),
+            themeToggle: document.getElementById('theme-toggle'),
+            icons: { sun: document.getElementById('sun-icon'), moon: document.getElementById('moon-icon') }
+        };
+
+        // --- UTILS ---
+        const timeToDec = (t) => { const [h, m] = t.split(':').map(Number); return h + (m/60); };
+        const decToTime = (d) => {
+            d = d % 24; if(d < 0) d += 24;
+            const h = Math.floor(d);
+            const m = Math.round((d - h) * 60);
+            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        };
+        const decToDur = (d) => `${Math.floor(d)}h ${Math.round((d - Math.floor(d)) * 60)}m`;
+
+        // --- DYNAMIC HTML INJECTION ---
+        function renderSectors(count) {
+            els.dynamicSectorsContainer.innerHTML = '';
+            
+            for (let i = 1; i <= count; i++) {
+                // Sector Panel
+                let html = `
+                <div class="bg-gray-50 dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                    <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Sector ${i} Details</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Flight Time (EET)</label>
+                            <div class="flex gap-2">
+                                <div class="relative w-1/2">
+                                    <input type="number" id="flightH_${i}" min="0" max="25" class="flight-input block w-full text-lg font-mono bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500 dark:text-white p-2 text-center shadow-sm" value="03">
+                                    <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-[9px] font-bold">HR</span>
+                                </div>
+                                <div class="relative w-1/2">
+                                    <input type="number" id="flightM_${i}" min="0" max="59" class="flight-input block w-full text-lg font-mono bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500 dark:text-white p-2 text-center shadow-sm" value="30">
+                                    <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-[9px] font-bold">MIN</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ground Time (Taxi)</label>
+                            <div class="relative w-full">
+                                <input type="number" id="groundM_${i}" min="0" max="300" class="flight-input block w-full text-lg font-mono bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500 dark:text-white p-2 text-center shadow-sm" value="18">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[9px] font-bold">MIN</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+                els.dynamicSectorsContainer.insertAdjacentHTML('beforeend', html);
+
+                // Transit Duration Panel (Only shown between sectors)
+                if (i < count) {
+                    let transitHtml = `
+                    <div class="flex flex-col items-center justify-center -my-1 relative z-10">
+                        <div class="bg-gray-200 dark:bg-slate-700 h-6 w-0.5"></div>
+                        <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-600 rounded-full px-4 py-1.5 shadow-sm flex items-center gap-3 transition-colors duration-300">
+                            <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transit ${i}</span>
+                            <div class="flex gap-1 w-32">
+                                <div class="relative w-1/2">
+                                    <input type="number" id="transitH_${i}" min="0" max="12" class="flight-input block w-full text-sm font-mono bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500 dark:text-white p-1 text-center" value="01">
+                                    <span class="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 text-[8px] font-bold">H</span>
+                                </div>
+                                <span class="text-gray-400 text-xs self-center font-bold">:</span>
+                                <div class="relative w-1/2">
+                                    <input type="number" id="transitM_${i}" min="0" max="59" class="flight-input block w-full text-sm font-mono bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:border-blue-500 dark:text-white p-1 text-center" value="00">
+                                    <span class="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 text-[8px] font-bold">M</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-200 dark:bg-slate-700 h-6 w-0.5"></div>
+                    </div>`;
+                    els.dynamicSectorsContainer.insertAdjacentHTML('beforeend', transitHtml);
+                }
+            }
+            
+            // Re-attach listeners for the dynamically generated elements
+            document.querySelectorAll('.flight-input').forEach(el => {
+                el.addEventListener('input', calculate);
+                el.addEventListener('change', calculate);
+            });
+        }
+
+        // --- UI TOGGLES ---
+        function setFlightType(isUlr) {
+            isUlrMode = isUlr;
+            if (isUlr) {
+                els.btnUlr.className = "w-1/2 py-2 text-sm font-bold rounded-r-lg bg-blue-600 text-white shadow-md focus:outline-none transition-colors";
+                els.btnNonUlr.className = "w-1/2 py-2 text-sm font-bold rounded-l-lg bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 focus:outline-none transition-colors";
+                els.sectSectorsToggle.classList.add('hidden');
+                els.sectCrew.classList.add('hidden');
+                els.dynamicSectorsContainer.classList.add('hidden');
+                els.sectUlrConfig.classList.remove('hidden');
+                els.badges.ulr.classList.remove('hidden');
+            } else {
+                els.btnNonUlr.className = "w-1/2 py-2 text-sm font-bold rounded-l-lg bg-blue-600 text-white shadow-md focus:outline-none transition-colors";
+                els.btnUlr.className = "w-1/2 py-2 text-sm font-bold rounded-r-lg bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 focus:outline-none transition-colors";
+                els.sectSectorsToggle.classList.remove('hidden');
+                els.sectCrew.classList.remove('hidden');
+                els.dynamicSectorsContainer.classList.remove('hidden');
+                els.sectUlrConfig.classList.add('hidden');
+                els.badges.ulr.classList.add('hidden');
+            }
+            calculate();
+        }
+
+        function setSectors(val) {
+            els.sectorsInput.value = val;
+            els.sectorBtns.forEach(btn => {
+                const active = parseInt(btn.dataset.val) === val;
+                btn.className = `sector-btn py-3 rounded-lg font-bold transition-all ${active 
+                    ? 'bg-blue-600 text-white shadow-md transform scale-105' 
+                    : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-600'}`;
+            });
+            renderSectors(val);
+            calculate();
+        }
+
+        // --- CALCULATION ---
+        function calculate() {
+            const reportDec = timeToDec(els.reportTime.value || "00:00");
+            const breakHours = parseFloat(els.breakH.value) || 0;
+            const useDiscretion = els.discretion.checked;
+            
+            let totalDutyReqDec = 0;
+            let maxFdp = 0;
+            let fdpType = "Standard";
+
+            if (isUlrMode) {
+                // ULR FDP Logic
+                els.badges.aug.classList.add('hidden');
+                const schedFDP = (parseInt(els.schedFDPHours.value)||0) + ((parseInt(els.schedFDPMins.value)||0)/60);
+                
+                // ULR FDP is Scheduled FDP or 18h, whichever is higher
+                maxFdp = Math.max(schedFDP, 18.00);
+                fdpType = "ULR Operations";
+
+                // Total Continuous block for ULR
+                const fh = parseInt(document.getElementById('flightH_ulr').value) || 0;
+                const fm = parseInt(document.getElementById('flightM_ulr').value) || 0;
+                const gm = parseInt(document.getElementById('groundM_ulr').value) || 0;
+                totalDutyReqDec = fh + (fm / 60) + (gm / 60);
+
+            } else {
+                // Non-ULR FDP Logic
+                const sectors = parseInt(els.sectorsInput.value);
+                const crewMode = els.crew.value;
+
+                if (crewMode === 'std') {
+                    const row = standardTable.find(r => reportDec >= r.start && reportDec < r.end) || standardTable[0];
+                    const idx = Math.min(sectors - 1, 3);
+                    maxFdp = row.limits[idx];
+                    els.badges.aug.classList.add('hidden');
+                } else if (crewMode === 'aug3') {
+                    maxFdp = 15.00; // Base augmented 3-pilot limit
+                    fdpType = "Augmented (3 Crew)";
+                    els.badges.aug.classList.remove('hidden');
+                } else if (crewMode === 'aug4') {
+                    maxFdp = 17.00; // Base augmented 4-pilot limit
+                    fdpType = "Augmented (4 Crew)";
+                    els.badges.aug.classList.remove('hidden');
+                }
+
+                // Sum all flight times, ground times, and transits sequentially
+                for(let i = 1; i <= sectors; i++) {
+                    const fh = parseInt(document.getElementById(`flightH_${i}`)?.value) || 0;
+                    const fm = parseInt(document.getElementById(`flightM_${i}`)?.value) || 0;
+                    const gm = parseInt(document.getElementById(`groundM_${i}`)?.value) || 0;
+                    
+                    totalDutyReqDec += fh + (fm / 60) + (gm / 60);
+                    
+                    if (i < sectors) {
+                        const th = parseInt(document.getElementById(`transitH_${i}`)?.value) || 0;
+                        const tm = parseInt(document.getElementById(`transitM_${i}`)?.value) || 0;
+                        totalDutyReqDec += th + (tm / 60);
+                    }
+                }
+            }
+
+            // Apply Split Duty (Ground Break)
+            if (breakHours > 0) {
+                const extension = breakHours * 0.5;
+                maxFdp += extension;
+                els.badges.split.classList.remove('hidden');
+                fdpType += ` + ${extension}h Split`;
+            } else {
+                els.badges.split.classList.add('hidden');
+            }
+
+            // Apply Discretion
+            if (useDiscretion) {
+                maxFdp += 3;
+                els.badges.disc.classList.remove('hidden');
+            } else {
+                els.badges.disc.classList.add('hidden');
+            }
+
+            // Calculate End Times
+            const dutyEndDec = reportDec + maxFdp;
+            
+            // Latest Chocks Off = Latest On-Chocks (dutyEndDec) - Total Continous Block (totalDutyReqDec)
+            const cotDec = dutyEndDec - totalDutyReqDec;
+
+            // Update UI
+            els.displayMaxFDP.textContent = decToDur(maxFdp);
+            els.displayFDPDetail.textContent = fdpType;
+            els.displayDutyEnd.textContent = decToTime(dutyEndDec);
+
+            if (totalDutyReqDec > maxFdp) {
+                els.displayCOT.textContent = "N/A";
+                els.displayCOT.classList.add('text-red-300');
+                els.displayCOT.classList.remove('text-blue-100');
+                els.displayFDPDetail.textContent = "Exceeds Permissible FDP";
+                els.displayFDPDetail.classList.add('text-red-500');
+                els.displayFDPDetail.classList.remove('text-emerald-600', 'dark:text-emerald-400');
+            } else {
+                els.displayCOT.textContent = decToTime(cotDec);
+                els.displayCOT.classList.remove('text-red-300');
+                els.displayCOT.classList.add('text-blue-100');
+                els.displayFDPDetail.classList.remove('text-red-500');
+                els.displayFDPDetail.classList.add('text-emerald-600', 'dark:text-emerald-400');
+            }
+        }
+
+        // --- EVENTS & INIT ---
+        document.querySelectorAll('.global-input').forEach(el => {
+            el.addEventListener('input', calculate);
+            el.addEventListener('change', calculate);
+        });
+        
+        els.reportTime.addEventListener('input', calculate);
+
+        // Theme Toggle
+        els.themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            els.icons.sun.classList.toggle('hidden', !isDark);
+            els.icons.moon.classList.toggle('hidden', isDark);
+        });
+
+        // Initialize App
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            els.icons.sun.classList.remove('hidden');
+            els.icons.moon.classList.add('hidden');
+        }
+        
+        // Initial setup
+        setFlightType(false);
+        setSectors(2); // Pre-fill with a 2-sector example (e.g. SIN-MNL MNL-SIN)
+    </script>
+</body>
+</html>
