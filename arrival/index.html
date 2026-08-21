@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- iOS Web App Meta Tags: Enables "Add to Home Screen" for a native, non-refreshing experience -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SQ Announcements">
+  <meta name="format-detection" content="telephone=no">
+
+  <title>Flight Crew Announcement Tool - Singapore Airlines</title>
+  <style>
+    /* General Styles */
+    :root {
+        --primary-color: #00529b;
+        --primary-hover: #003d73;
+        --bg-color: #f4f7f6;
+        --container-bg: #ffffff;
+        --text-color: #333;
+        --border-color: #e0e0e0;
+        --input-bg: #fff;
+        --input-border: #ccc;
+        --tab-inactive: #e9ecef;
+        --tab-active-text: #00529b;
+        --live-clock-bg: #e3f2fd;
+        --live-clock-text: #0d47a1;
+        --live-clock-border: #bbdefb;
+    }
+
+    body.night-mode {
+        --primary-color: #5dade2;
+        --primary-hover: #85c1e9;
+        --bg-color: #2c3e50;
+        --container-bg: #34495e;
+        --text-color: #ecf0f1;
+        --border-color: #4a6fa5;
+        --input-bg: #2c3e50;
+        --input-border: #566573;
+        --tab-inactive: #4a6278;
+        --tab-active-text: #2c3e50;
+        --live-clock-bg: #1c2833;
+        --live-clock-text: #5dade2;
+        --live-clock-border: #34495e;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 100%;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s;
+      
+      /* Prevents accidental pull-to-refresh on iPad/iOS Safari */
+      overscroll-behavior-y: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 10px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 850px;
+      background-color: var(--container-bg);
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      padding: 0;
+      overflow: hidden;
+      transition: background-color 0.3s;
+    }
+
+    /* Heading Area */
+    .heading-container {
+        padding: 20px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .heading-container h3 {
+        margin: 0;
+        font-size: 20px;
+        color: var(--primary-color);
+    }
+    
+    /* Tabs */
+    .tabs {
+        display: flex;
+        background-color: var(--tab-inactive);
+        overflow-x: auto;
+        border-bottom: 1px solid var(--border-color);
+        -webkit-overflow-scrolling: touch;
+    }
+    .tab-button {
+        flex: 1;
+        padding: 12px 15px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-weight: 600;
+        color: #666;
+        white-space: nowrap;
+        transition: all 0.2s;
+        border-bottom: 3px solid transparent;
+        min-width: 100px;
+        text-align: center;
+    }
+    body.night-mode .tab-button { color: #ccc; }
+    
+    .tab-button:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    .tab-button.active {
+        color: var(--tab-active-text);
+        border-bottom-color: var(--primary-color);
+        background-color: var(--container-bg);
+    }
+    body.night-mode .tab-button.active {
+        color: var(--primary-color);
+        background-color: var(--container-bg);
+    }
+
+    /* Content Sections */
+    .tab-content {
+        display: none;
+        padding: 25px;
+        animation: fadeIn 0.3s;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Form Elements */
+    .form-section {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 1;
+        min-width: 180px;
+    }
+    .form-group.small { flex: 0 1 120px; min-width: 100px; }
+    .form-group.medium { flex: 2; }
+    
+    label {
+        font-weight: 600;
+        font-size: 0.85em;
+        color: var(--text-color);
+        opacity: 0.9;
+    }
+    
+    input[type="text"], input[type="number"], input[type="time"], select, textarea {
+        font-family: inherit;
+        font-size: 14px;
+        padding: 8px;
+        border: 1px solid var(--input-border);
+        border-radius: 5px;
+        width: 100%;
+        box-sizing: border-box;
+        background-color: var(--input-bg);
+        color: var(--text-color);
+    }
+    
+    textarea {
+        resize: vertical;
+        min-height: 400px;
+        line-height: 1.5;
+        font-size: 15px;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+        border-color: var(--primary-color);
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0, 82, 155, 0.2);
+    }
+
+    /* Duration Input Group */
+    .duration-input-group {
+        display: flex;
+        gap: 5px;
+    }
+    .duration-input-group input {
+        flex: 1;
+    }
+    .duration-input-group select {
+        flex: 1;
+    }
+
+    /* Special Groups */
+    .airport-selection-row {
+        align-items: flex-start;
+    }
+    .swap-btn-container {
+        display: flex;
+        align-items: center;
+        padding-top: 25px;
+    }
+    #swapAirportsButton {
+        background: none;
+        border: 1px solid var(--input-border);
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        color: var(--text-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #swapAirportsButton:hover { background-color: rgba(0,0,0,0.05); }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 5px;
+        font-size: 0.9em;
+    }
+    .checkbox-group input { width: auto; }
+    
+    .panel {
+        background-color: rgba(0,0,0,0.03);
+        border: 1px solid var(--border-color);
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+    .panel-title {
+        font-weight: bold;
+        margin-bottom: 10px;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--primary-color);
+    }
+    
+    /* Live Clock Panel */
+    .live-clock-panel {
+        background-color: var(--live-clock-bg);
+        border: 1px solid var(--live-clock-border);
+        color: var(--live-clock-text);
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        animation: fadeIn 0.5s;
+    }
+
+    /* Speaker Config Panel (Shared) */
+    .speaker-config {
+        background-color: rgba(0,82,155,0.05);
+        border: 1px solid rgba(0,82,155,0.2);
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+    body.night-mode .speaker-config {
+        background-color: rgba(93, 173, 226, 0.1);
+        border-color: rgba(93, 173, 226, 0.3);
+    }
+
+    /* Output Area */
+    .output-section {
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    /* Buttons */
+    .button-toolbar {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    .button {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        transition: opacity 0.2s;
+    }
+    .button:hover { opacity: 0.9; }
+    .button.secondary { background-color: #6c757d; }
+    .button.danger { background-color: #dc3545; }
+    .button.success { background-color: #28a745; }
+    .button.outline { background-color: transparent; border: 1px solid var(--input-border); color: var(--text-color); }
+    
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 20px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 20px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px; width: 16px;
+      left: 2px; bottom: 2px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--primary-color); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .hidden { display: none !important; }
+    
+    /* Helper classes for text */
+    .note { font-size: 0.8em; font-style: italic; opacity: 0.7; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="heading-container">
+      <h3>Flight Crew Announcement Tool</h3>
+      <div style="display: flex; gap: 15px; align-items: center;">
+        <span style="font-size: 0.85em; opacity: 0.8;">Night Mode</span>
+        <label class="switch" title="Toggle Day/Night Mode">
+          <input type="checkbox" id="darkModeToggle">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+        <button class="tab-button active" onclick="openTab('welcome')">Welcome</button>
+        <button class="tab-button" onclick="openTab('arrival')">Arrival</button>
+        <button class="tab-button" onclick="openTab('irrops')">Irregularities</button>
+        <button class="tab-button" onclick="openTab('creeping')">Creeping Delay</button>
+        <button class="tab-button" onclick="openTab('turbulence')">Turbulence</button>
+        <button class="tab-button" onclick="openTab('misc')">Misc</button>
+    </div>
+
+    <!-- TAB: WELCOME -->
+    <div id="welcome" class="tab-content active">
+        <div class="form-section">
+            <div class="form-group">
+                <label>Announcing Pilot</label>
+                <select id="welc_speakerRole">
+                    <option value="Captain">Captain</option>
+                    <option value="Pilot">Pilot</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Captain Name</label>
+                    <input type="text" id="welc_captainName" placeholder="e.g. Captain Tan">
+                </div>
+                <div class="form-group">
+                    <label>Assisting Pilot(s)</label>
+                    <input type="text" id="welc_assistPilot" placeholder="e.g. Pilot Lee">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group small">
+                    <label>Flight No.</label>
+                    <input type="text" id="welc_flightNo" placeholder="SQ...">
+                </div>
+                <div class="form-group">
+                    <label>Destination</label>
+                    <input type="text" id="welc_destination" placeholder="City Name">
+                </div>
+                <div class="form-group medium">
+                    <label>Flight Time</label>
+                    <div class="duration-input-group">
+                        <input type="number" id="welc_flightHours" placeholder="HR" min="0">
+                        <span style="align-self:center;">:</span>
+                        <input type="number" id="welc_flightMinutes" placeholder="MIN" min="0" max="59">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Cabin Crew In-Charge</label>
+                <input type="text" id="welc_cicName" placeholder="e.g. Inflight Manager Smith">
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">Configuration</div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="welc_hasIFE" checked>
+                    <label for="welc_hasIFE">Aircraft has IFE System</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="welc_isUS" onchange="toggleUSWelcome()">
+                    <label for="welc_isUS">US Sector (Security Announcement)</label>
+                </div>
+            </div>
+
+            <div class="button-toolbar">
+                <button class="button" onclick="generateWelcome()">Generate Welcome PA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: ARRIVAL -->
+    <div id="arrival" class="tab-content">
+        <div class="form-section">
+            <!-- Speaker Role -->
+            <div class="speaker-config">
+                <div class="form-group" style="flex: 1;">
+                    <label for="arr_speakerRole">Speaker</label>
+                    <select id="arr_speakerRole">
+                        <option value="Captain" selected>Captain</option>
+                        <option value="Pilot">Pilot</option>
+                    </select>
+                </div>
+                <!-- Captain name field specifically for when Pilot is speaking (for closing statement) -->
+                <!-- Default is hidden (since default role is Captain) -->
+                <div class="form-group hidden" id="arr_captainNameGroup" style="flex: 2;">
+                    <label>Captain's Name (for Closing)</label>
+                    <input type="text" id="arr_captainName" placeholder="Captain's Name">
+                </div>
+            </div>
+
+            <!-- Airports -->
+            <div class="form-row airport-selection-row">
+                <div class="form-group">
+                    <label>Origin</label>
+                    <input type="text" id="arr_originSearch" placeholder="Search (e.g. SIN, WSSS)">
+                    <select id="arr_originAirport" style="margin-top:5px;"></select>
+                    
+                    <div class="checkbox-group" style="margin-top: 8px;">
+                         <input type="checkbox" id="arr_originManualOffsetToggle">
+                         <label for="arr_originManualOffsetToggle">Manual GMT Offset Override</label>
+                    </div>
+                    <div id="arr_originManualOffsetGroup" class="hidden" style="margin-top: 5px;">
+                        <input type="number" id="arr_originManualOffset" placeholder="Offset (e.g. 8 or -5)" step="0.25">
+                    </div>
+                </div>
+                <div class="swap-btn-container">
+                    <button id="swapAirportsButton" title="Swap">⇆</button>
+                </div>
+                <div class="form-group">
+                    <label>Arrival</label>
+                    <input type="text" id="arr_arrivalSearch" placeholder="Search (e.g. LHR, EGLL)">
+                    <select id="arr_arrivalAirport" style="margin-top:5px;"></select>
+                    
+                    <div class="checkbox-group" style="margin-top: 8px;">
+                         <input type="checkbox" id="arr_manualOffsetToggle">
+                         <label for="arr_manualOffsetToggle">Manual GMT Offset Override</label>
+                    </div>
+                    <div id="arr_manualOffsetGroup" class="hidden" style="margin-top: 5px;">
+                        <input type="number" id="arr_manualOffset" placeholder="Offset (e.g. 5.5 or -8)" step="0.25">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time & Weather -->
+            <div class="form-row">
+                <div class="form-group small">
+                    <label>Descent In (mins)</label>
+                    <input type="number" id="arr_todMinutes" value="20">
+                </div>
+                <div class="form-group">
+                    <label>Est. Arrival (Zulu)</label>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <input type="number" id="arr_zuluHH" placeholder="HH" min="0" max="23">
+                        <span>:</span>
+                        <input type="number" id="arr_zuluMM" placeholder="MM" min="0" max="59">
+                        <span>Z</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Weather</label>
+                    <select id="arr_weather"></select>
+                </div>
+                <div class="form-group small">
+                    <label>Temp (°C)</label>
+                    <input type="number" id="arr_temp" value="25">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="arr_showFahrenheit">
+                        <label for="arr_showFahrenheit" style="font-weight:normal; font-size:0.9em;">Show Fahrenheit</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCP Toggle -->
+            <div class="panel" style="margin-top: 10px;">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="arr_scp">
+                    <label for="arr_scp"><strong>Secure Cabin Procedure (SCP)</strong> - Expect turbulence/Seat belt sign ON early</label>
+                </div>
+            </div>
+
+            <div class="button-toolbar">
+                <button class="button" onclick="generateArrival()">Generate Arrival PA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: IRREGULARITIES -->
+    <div id="irrops" class="tab-content">
+        <div class="form-section">
+            <div class="panel">
+                <div class="note">Provides factual reasons and apologies for delays/disruptions.</div>
+            </div>
+            
+            <div class="speaker-config">
+                <div class="form-group" style="flex: 1;">
+                    <label>Speaker</label>
+                    <select id="irr_speakerRole">
+                        <option value="Captain">Captain</option>
+                        <option value="Pilot">Pilot</option>
+                    </select>
+                </div>
+                <div class="form-group hidden" id="irr_speakerNameGroup" style="flex: 2;">
+                    <label>Name</label>
+                    <input type="text" id="irr_speakerName" placeholder="Name">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Scenario / Reason</label>
+                <select id="irr_scenario" onchange="updateIrropsFields()">
+                    <option value="">-- Select Scenario --</option>
+                    <optgroup label="Delays">
+                        <option value="late_inbound">Late arrival of inbound aircraft</option>
+                        <option value="late_boarding">Late boarding (Pax not seated)</option>
+                        <option value="congestion">Airport Congestion</option>
+                        <option value="weather_dest">Destination Weather</option>
+                        <option value="atc">ATC (Traffic/Enroute)</option>
+                        <option value="crew">Crew Requirements</option>
+                        <option value="tech_simple">Technical (Simple/Obvious)</option>
+                        <option value="tech_complex">Technical (Complex/Not obvious)</option>
+                        <option value="baggage">Offloading Bags</option>
+                    </optgroup>
+                    <optgroup label="Return to Bay (RTB) / Diversion">
+                        <option value="medical">Medical Emergency</option>
+                        <option value="lithium">Lithium Battery in Cargo</option>
+                        <option value="security">Security</option>
+                        <option value="tech_rtb">Technical (Engine/Major)</option>
+                        <option value="unruly">Unruly Passenger</option>
+                        <option value="weather_div">Deteriorating Weather (Diversion)</option>
+                        <option value="atc_closure">Airspace Closure</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Reason Text (Editable)</label>
+                <input type="text" id="irr_reasonText" placeholder="Auto-filled based on selection">
+            </div>
+
+            <div class="form-group">
+                <label>Action Taken</label>
+                <select id="irr_action" onchange="checkIrrAction()">
+                    <option value="delayed">Will be delayed for approximately...</option>
+                    <option value="return">Had to return to...</option>
+                    <option value="divert">Had to divert to...</option>
+                </select>
+            </div>
+
+            <!-- Dynamic Duration Group: Location OR Time -->
+            <div class="form-group" id="irr_durationGroup">
+                <label id="irr_durationLabel">Duration / Location</label>
+                <!-- Location Input (Text) -->
+                <input type="text" id="irr_durationLocation" placeholder="e.g. the gate" class="hidden">
+                <!-- Time Input (Number + Unit) -->
+                <div class="duration-input-group" id="irr_durationTimeGroup">
+                    <input type="number" id="irr_durationVal" placeholder="Value">
+                    <select id="irr_durationUnit">
+                        <option value="minute">Minute(s)</option>
+                        <option value="hour">Hour(s)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Closing/Update</label>
+                <select id="irr_closing">
+                    <option value="gate">Update once we are at the gate</option>
+                    <option value="further">Update once we have further info</option>
+                    <option value="none">Standard apology only</option>
+                </select>
+            </div>
+
+            <div class="button-toolbar">
+                <button class="button" onclick="generateIrrops()">Generate IRROPS PA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: CREEPING DELAY -->
+    <div id="creeping" class="tab-content">
+        <div class="speaker-config">
+            <div class="form-group" style="flex: 1;">
+                <label>Speaker</label>
+                <select id="crp_speakerRole">
+                    <option value="Captain">Captain</option>
+                    <option value="Pilot">Pilot</option>
+                </select>
+            </div>
+            <div class="form-group hidden" id="crp_speakerNameGroup" style="flex: 2;">
+                <label>Name</label>
+                <input type="text" id="crp_speakerName" placeholder="Name">
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Creeping Delay Timeline</div>
+            <p class="note">Select the current stage of the delay.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <label><input type="radio" name="creepStage" value="initial" checked onchange="generateCreep()"> Initial Delay (Technical)</label>
+                <label><input type="radio" name="creepStage" value="30" onchange="generateCreep()"> T + 30 Mins (Extended delay)</label>
+                <label><input type="radio" name="creepStage" value="60" onchange="generateCreep()"> T + 60/90/120 Mins (Remain on board)</label>
+                <label><input type="radio" name="creepStage" value="180" onchange="generateCreep()"> T + 180 Mins (US Tarmac / Disembark)</label>
+                <label><input type="radio" name="creepStage" value="cancel" onchange="generateCreep()"> Flight Cancellation</label>
+                <label><input type="radio" name="creepStage" value="resolved" onchange="generateCreep()"> Issue Resolved</label>
+            </div>
+        </div>
+
+        <div id="creep_resolvedTimeGroup" class="form-group hidden">
+            <label>Estimated Departure Time</label>
+            <input type="text" id="creep_depTime" placeholder="e.g. 10:30 AM">
+        </div>
+
+        <div class="button-toolbar">
+            <button class="button" onclick="generateCreep()">Generate Creeping Delay PA</button>
+        </div>
+    </div>
+
+    <!-- TAB: TURBULENCE -->
+    <div id="turbulence" class="tab-content">
+        <div class="speaker-config">
+            <div class="form-group" style="flex: 1;">
+                <label>Speaker</label>
+                <select id="trb_speakerRole">
+                    <option value="Captain">Captain</option>
+                    <option value="Pilot">Pilot</option>
+                </select>
+            </div>
+            <div class="form-group hidden" id="trb_speakerNameGroup" style="flex: 2;">
+                <label>Name</label>
+                <input type="text" id="trb_speakerName" placeholder="Name">
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Control Announcements</div>
+            <div class="button-toolbar" style="flex-direction: column;">
+                <button class="button" onclick="generateTurbulence('pa1')">PA 1: Light Turbulence (Service Continues)</button>
+                <div class="note">Use when Seat Belt sign ON but service safe to continue.</div>
+                
+                <button class="button secondary" onclick="generateTurbulence('pa2')">PA 2: Moderate Turbulence (Suspend Service)</button>
+                <div class="note">Mandatory if service unsafe. Crew to be seated.</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Unanticipated Turbulence (Reassurance)</div>
+            <div class="form-group">
+                <label>Nature of Turbulence</label>
+                <input type="text" id="turb_nature" placeholder="e.g. jet stream / storm clouds">
+            </div>
+             <div class="form-group">
+                <label>Expected improvement in</label>
+                <div class="duration-input-group">
+                    <input type="number" id="turb_durationVal" placeholder="Value">
+                    <select id="turb_durationUnit">
+                        <option value="minute">Minute(s)</option>
+                        <option value="hour">Hour(s)</option>
+                    </select>
+                </div>
+            </div>
+            <button class="button outline" onclick="generateTurbulence('reassure')">Generate Reassurance PA</button>
+        </div>
+    </div>
+
+    <!-- TAB: MISC -->
+    <div id="misc" class="tab-content">
+        <div class="speaker-config">
+            <div class="form-group" style="flex: 1;">
+                <label>Speaker</label>
+                <select id="msc_speakerRole">
+                    <option value="Captain">Captain</option>
+                    <option value="Pilot">Pilot</option>
+                </select>
+            </div>
+            <div class="form-group hidden" id="msc_speakerNameGroup" style="flex: 2;">
+                <label>Name</label>
+                <input type="text" id="msc_speakerName" placeholder="Name">
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="panel">
+                <div class="panel-title">Go Around</div>
+                <div class="form-group">
+                    <label>Reason</label>
+                    <input type="text" id="misc_goAroundReason" placeholder="e.g. aircraft on runway / weather">
+                </div>
+                <div class="form-group">
+                    <label>Landing in</label>
+                    <div class="duration-input-group">
+                        <input type="number" id="misc_goAroundVal" placeholder="Value">
+                        <select id="misc_goAroundUnit">
+                            <option value="minute">Minute(s)</option>
+                            <option value="hour">Hour(s)</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="button" onclick="generateMisc('goaround')">Generate Go Around PA</button>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Warm Cabin</div>
+                <div class="form-group">
+                    <label>Engines start in</label>
+                    <div class="duration-input-group">
+                        <input type="number" id="misc_warmVal" placeholder="Value">
+                        <select id="misc_warmUnit">
+                            <option value="minute">Minute(s)</option>
+                            <option value="hour">Hour(s)</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="button" onclick="generateMisc('warm')">Generate Warm Cabin PA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OUTPUT AREA (Shared) -->
+    <div class="output-section">
+        <!-- Live Clock Indicator -->
+        <div id="liveClockPanel" class="live-clock-panel hidden">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span style="font-weight:600;">Current Time in <span id="liveClockCity">Destination</span>:</span>
+                <span id="liveClockTime" style="font-family:'Courier New', monospace; font-weight:bold; font-size:1.1em;">--:--</span>
+            </div>
+            <div style="font-size:0.8em; opacity:0.8; text-align:right; max-width: 150px; line-height: 1.2;">
+                Announcement text updates automatically
+            </div>
+        </div>
+
+        <label for="mainOutput" style="display:block; margin-bottom:10px;">Generated Announcement (Editable)</label>
+        <textarea id="mainOutput" readonly></textarea>
+        <div class="button-toolbar">
+            <button class="button secondary" id="copyButton">Copy to Clipboard</button>
+        </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- OFFLINE STATE MANAGEMENT ---
+    const STATE_KEY = 'sia_announcement_tool_state';
+
+    function saveState() {
+        const state = {
+            inputs: {},
+            liveClock: null
+        };
+
+        const activeContent = document.querySelector('.tab-content.active');
+        if (activeContent) state.activeTabId = activeContent.id;
+
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.id) {
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    state.inputs[el.id] = el.checked;
+                } else {
+                    state.inputs[el.id] = el.value;
+                }
+            }
+        });
+
+        // Save live clock configuration if active
+        const clockPanel = document.getElementById('liveClockPanel');
+        if (!clockPanel.classList.contains('hidden')) {
+            state.liveClock = {
+                city: document.getElementById('liveClockCity').textContent,
+                offset: parseFloat(clockPanel.dataset.offset || 0)
+            };
+        }
+
+        localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    }
+
+    function restoreState() {
+        const saved = localStorage.getItem(STATE_KEY);
+        if (!saved) return false;
+
+        try {
+            const state = JSON.parse(saved);
+            
+            // Restore inputs
+            if (state.inputs) {
+                for (const id in state.inputs) {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        if (el.type === 'checkbox' || el.type === 'radio') {
+                            el.checked = state.inputs[id];
+                        } else {
+                            el.value = state.inputs[id];
+                        }
+                    }
+                }
+            }
+
+            // Restore active tab
+            if (state.activeTabId) {
+                openTab(state.activeTabId);
+            }
+
+            // Restore Live Clock
+            if (state.liveClock) {
+                startLiveDestinationClock(state.liveClock.city, state.liveClock.offset);
+            }
+            
+            // Re-apply Night Mode visually based on checked status
+            if (document.getElementById('darkModeToggle').checked) {
+                document.body.classList.add('night-mode');
+            }
+            
+            return true;
+        } catch(e) {
+            console.error("Failed to restore state", e);
+            return false;
+        }
+    }
+
+    function attachStateListeners() {
+        document.body.addEventListener('input', saveState);
+        document.body.addEventListener('change', saveState);
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', () => setTimeout(saveState, 50));
+        });
+    }
+
+    // --- AIRPORT DATA ---
+    const airportData = {
+        // South East Asia
+        "WSSS": { iata: "SIN", name: "Singapore Changi Airport", announcementName: "Singapore Changi Airport", standardGmtOffset: 8, shortName: "Singapore" },
+        "WADD": { iata: "DPS", name: "Denpasar Ngurah Rai", announcementName: "Denpasar Ngurah Rai International Airport", standardGmtOffset: 8, shortName: "Denpasar" },
+        "WIDD": { iata: "KNO", name: "Medan Kualanamu", announcementName: "Medan Kualanamu International Airport", standardGmtOffset: 7, shortName: "Medan" },
+        "WMKJ": { iata: "PEN", name: "Penang", announcementName: "Penang International Airport", standardGmtOffset: 8, shortName: "Penang" },
+        "WMKK": { iata: "KUL", name: "Kuala Lumpur Intl", announcementName: "Kuala Lumpur International Airport", standardGmtOffset: 8, shortName: "Kuala Lumpur" },
+        "WBKK": { iata: "BKI", name: "Kota Kinabalu", announcementName: "Kota Kinabalu International Airport", standardGmtOffset: 8, shortName: "Kota Kinabalu" },
+        "WBGR": { iata: "KCH", name: "Kuching", announcementName: "Kuching International Airport", standardGmtOffset: 8, shortName: "Kuching" },
+        "WMKL": { iata: "LGK", name: "Langkawi", announcementName: "Langkawi International Airport", standardGmtOffset: 8, shortName: "Langkawi" },
+        "WBSB": { iata: "BWN", name: "Brunei", announcementName: "Brunei International Airport", standardGmtOffset: 8, shortName: "Bandar Seri Begawan" },
+        "VVTS": { iata: "SGN", name: "Ho Chi Minh City Tan Son Nhat", announcementName: "Ho Chi Minh City Tan Son Nhat International Airport", standardGmtOffset: 7, shortName: "Ho Chi Minh City" },
+        "VVNB": { iata: "HAN", name: "Hanoi Noi Bai", announcementName: "Hanoi Noi Bai International Airport", standardGmtOffset: 7, shortName: "Hanoi" },
+        "VTBS": { iata: "BKK", name: "Bangkok Suvarnabhumi", announcementName: "Bangkok Suvarnabhumi Airport", standardGmtOffset: 7, shortName: "Bangkok" },
+        "VTSG": { iata: "HKT", name: "Phuket", announcementName: "Phuket International Airport", standardGmtOffset: 7, shortName: "Phuket" },
+        "RPLL": { iata: "MNL", name: "Manila Ninoy Aquino", announcementName: "Manila Ninoy Aquino International Airport", standardGmtOffset: 8, shortName: "Manila" },
+        "RPVM": { iata: "CEB", name: "Cebu Mactan-Cebu", announcementName: "Cebu Mactan-Cebu International Airport", standardGmtOffset: 8, shortName: "Cebu" },
+        "VYYY": { iata: "RGN", name: "Yangon", announcementName: "Yangon International Airport", standardGmtOffset: 6.5, shortName: "Yangon" },
+        "VDPP": { iata: "PNH", name: "Phnom Penh", announcementName: "Phnom Penh International Airport", standardGmtOffset: 7, shortName: "Phnom Penh" },
+        "VDSR": { iata: "REP", name: "Siem Reap Angkor (SAI/REP)", announcementName: "Siem Reap Angkor International Airport", standardGmtOffset: 7, shortName: "Siem Reap" },
+        "WARR": { iata: "SUB", name: "Surabaya Juanda", announcementName: "Surabaya Juanda International Airport", standardGmtOffset: 7, shortName: "Surabaya" },
+        "WIII": { iata: "CGK", name: "Jakarta Soekarno-Hatta", announcementName: "Jakarta Soekarno-Hatta International Airport", standardGmtOffset: 7, shortName: "Jakarta" },
+        
+        // North East Asia
+        "RJAA": { iata: "NRT", name: "Tokyo Narita", announcementName: "Tokyo Narita International Airport", standardGmtOffset: 9, shortName: "Tokyo" },
+        "RJTT": { iata: "HND", name: "Tokyo Haneda", announcementName: "Tokyo Haneda Airport", standardGmtOffset: 9, shortName: "Tokyo" },
+        "RJBB": { iata: "KIX", name: "Osaka Kansai", announcementName: "Osaka Kansai International Airport", standardGmtOffset: 9, shortName: "Osaka" },
+        "RJFF": { iata: "FUK", name: "Fukuoka", announcementName: "Fukuoka Airport", standardGmtOffset: 9, shortName: "Fukuoka" },
+        "RJGG": { iata: "NGO", name: "Nagoya Chubu Centrair", announcementName: "Nagoya Chubu Centrair International Airport", standardGmtOffset: 9, shortName: "Nagoya" },
+        "ROAH": { iata: "OKA", name: "Naha (Okinawa)", announcementName: "Naha Airport", standardGmtOffset: 9, shortName: "Naha" },
+        "RKSI": { iata: "ICN", name: "Seoul Incheon", announcementName: "Seoul Incheon International Airport", standardGmtOffset: 9, shortName: "Seoul" },
+        "ZBAA": { iata: "PEK", name: "Beijing Capital", announcementName: "Beijing Capital International Airport", standardGmtOffset: 8, shortName: "Beijing" },
+        "ZBAD": { iata: "PKX", name: "Beijing Daxing", announcementName: "Beijing Daxing International Airport", standardGmtOffset: 8, shortName: "Beijing" },
+        "ZSPD": { iata: "PVG", name: "Shanghai Pudong", announcementName: "Shanghai Pudong International Airport", standardGmtOffset: 8, shortName: "Shanghai" },
+        "ZGGG": { iata: "CAN", name: "Guangzhou Baiyun", announcementName: "Guangzhou Baiyun International Airport", standardGmtOffset: 8, shortName: "Guangzhou" },
+        "ZGSZ": { iata: "SZX", name: "Shenzhen Bao'an", announcementName: "Shenzhen Bao'an International Airport", standardGmtOffset: 8, shortName: "Shenzhen" },
+        "ZUCK": { iata: "CKG", name: "Chongqing Jiangbei", announcementName: "Chongqing Jiangbei International Airport", standardGmtOffset: 8, shortName: "Chongqing" },
+        "ZUTF": { iata: "TFU", name: "Chengdu Tianfu", announcementName: "Chengdu Tianfu International Airport", standardGmtOffset: 8, shortName: "Chengdu" },
+        "ZSAM": { iata: "XMN", name: "Xiamen Gaoqi", announcementName: "Xiamen Gaoqi International Airport", standardGmtOffset: 8, shortName: "Xiamen" },
+        "ZGHA": { iata: "CSX", name: "Changsha Huanghua", announcementName: "Changsha Huanghua International Airport", standardGmtOffset: 8, shortName: "Changsha" },
+        "RCKH": { iata: "KHH", name: "Kaohsiung", announcementName: "Kaohsiung International Airport", standardGmtOffset: 8, shortName: "Kaohsiung" },
+        "RCTP": { iata: "TPE", name: "Taipei Taoyuan", announcementName: "Taipei Taoyuan International Airport", standardGmtOffset: 8, shortName: "Taipei" },
+        "VHHH": { iata: "HKG", name: "Hong Kong", announcementName: "Hong Kong International Airport", standardGmtOffset: 8, shortName: "Hong Kong" },
+        "VMMC": { iata: "MFM", name: "Macau", announcementName: "Macau International Airport", standardGmtOffset: 8, shortName: "Macau" },
+
+        // South West Pacific
+        "YSSY": { iata: "SYD", name: "Sydney Kingsford Smith", announcementName: "Sydney Kingsford Smith Airport", standardGmtOffset: 10, hasDST: true, shortName: "Sydney" },
+        "YMML": { iata: "MEL", name: "Melbourne", announcementName: "Melbourne Airport", standardGmtOffset: 10, hasDST: true, shortName: "Melbourne" },
+        "YBBN": { iata: "BNE", name: "Brisbane", announcementName: "Brisbane Airport", standardGmtOffset: 10, shortName: "Brisbane" }, 
+        "YPPH": { iata: "PER", name: "Perth", announcementName: "Perth Airport", standardGmtOffset: 8, shortName: "Perth" },
+        "YPAD": { iata: "ADL", name: "Adelaide", announcementName: "Adelaide Airport", standardGmtOffset: 9.5, hasDST: true, shortName: "Adelaide" },
+        "YPDN": { iata: "DRW", name: "Darwin", announcementName: "Darwin International Airport", standardGmtOffset: 9.5, shortName: "Darwin" },
+        "YBCS": { iata: "CNS", name: "Cairns", announcementName: "Cairns Airport", standardGmtOffset: 10, shortName: "Cairns" },
+        "NZAA": { iata: "AKL", name: "Auckland", announcementName: "Auckland Airport", standardGmtOffset: 12, hasDST: true, shortName: "Auckland" },
+        "NZCH": { iata: "CHC", name: "Christchurch", announcementName: "Christchurch International Airport", standardGmtOffset: 12, hasDST: true, shortName: "Christchurch" },
+
+        // West Asia & Africa
+        "VIDP": { iata: "DEL", name: "Delhi Indira Gandhi", announcementName: "Delhi Indira Gandhi International Airport", standardGmtOffset: 5.5, shortName: "Delhi" },
+        "VABB": { iata: "BOM", name: "Mumbai CSIA", announcementName: "Mumbai Chhatrapati Shivaji Maharaj International Airport", standardGmtOffset: 5.5, shortName: "Mumbai" },
+        "VOBL": { iata: "BLR", name: "Bengaluru Kempegowda", announcementName: "Bengaluru Kempegowda International Airport", standardGmtOffset: 5.5, shortName: "Bengaluru" },
+        "VOMM": { iata: "MAA", name: "Chennai", announcementName: "Chennai Airport, Anna International Terminal", standardGmtOffset: 5.5, shortName: "Chennai" },
+        "VOHS": { iata: "HYD", name: "Hyderabad Rajiv Gandhi", announcementName: "Hyderabad Rajiv Gandhi International Airport", standardGmtOffset: 5.5, shortName: "Hyderabad" },
+        "VAAH": { iata: "AMD", name: "Ahmedabad", announcementName: "Ahmedabad Airport", standardGmtOffset: 5.5, shortName: "Ahmedabad" },
+        "VOCI": { iata: "COK", name: "Kochi", announcementName: "Cochin International Airport", standardGmtOffset: 5.5, shortName: "Kochi" },
+        "VECC": { iata: "CCU", name: "Kolkata", announcementName: "Kolkata Netaji Subhash Chandra Bose International Airport", standardGmtOffset: 5.5, shortName: "Kolkata" },
+        "VOGO": { iata: "GOI", name: "Goa Dabolim", announcementName: "Goa Dabolim Airport", standardGmtOffset: 5.5, shortName: "Goa" },
+        "VOTV": { iata: "TRV", name: "Thiruvananthapuram", announcementName: "Thiruvananthapuram International Airport", standardGmtOffset: 5.5, shortName: "Thiruvananthapuram" },
+        "VGHS": { iata: "DAC", name: "Dhaka Shahjalal", announcementName: "Dhaka Shahjalal International Airport", standardGmtOffset: 6, shortName: "Dhaka" },
+        "VCBI": { iata: "CMB", name: "Colombo Bandaranaike", announcementName: "Colombo Bandaranaike International Airport", standardGmtOffset: 5.5, shortName: "Colombo" },
+        "VRMM": { iata: "MLE", name: "Malé Velana", announcementName: "Malé Velana International Airport", standardGmtOffset: 5, shortName: "Malé" },
+        "VNKT": { iata: "KTM", name: "Kathmandu Tribhuvan", announcementName: "Kathmandu Tribhuvan International Airport", standardGmtOffset: 5.75, shortName: "Kathmandu" },
+        "OMDB": { iata: "DXB", name: "Dubai International", announcementName: "Dubai International Airport", standardGmtOffset: 4, shortName: "Dubai" },
+        "OTHH": { iata: "DOH", name: "Doha Hamad", announcementName: "Doha Hamad International Airport", standardGmtOffset: 3, shortName: "Doha" },
+        "FACT": { iata: "CPT", name: "Cape Town", announcementName: "Cape Town International Airport", standardGmtOffset: 2, shortName: "Cape Town" },
+        "FAOR": { iata: "JNB", name: "Johannesburg O.R. Tambo", announcementName: "Johannesburg O. R. Tambo International Airport", standardGmtOffset: 2, shortName: "Johannesburg" },
+
+        // Europe
+        "EGLL": { iata: "LHR", name: "London Heathrow", announcementName: "London Heathrow Airport", standardGmtOffset: 0, hasDST: true, shortName: "London" },
+        "EGKK": { iata: "LGK", name: "London Gatwick", announcementName: "London Gatwick Airport", standardGmtOffset: 0, hasDST: true, shortName: "London" },
+        "EGCC": { iata: "MAN", name: "Manchester", announcementName: "Manchester Airport", standardGmtOffset: 0, hasDST: true, shortName: "Manchester" },
+        "LFPG": { iata: "CDG", name: "Paris Charles de Gaulle", announcementName: "Paris Charles de Gaulle Airport", standardGmtOffset: 1, hasDST: true, shortName: "Paris" },
+        "EDDF": { iata: "FRA", name: "Frankfurt", announcementName: "Frankfurt Airport", standardGmtOffset: 1, hasDST: true, shortName: "Frankfurt" },
+        "EDDM": { iata: "MUC", name: "Munich", announcementName: "Munich Airport", standardGmtOffset: 1, hasDST: true, shortName: "Munich" },
+        "EHAM": { iata: "AMS", name: "Amsterdam Schiphol", announcementName: "Amsterdam Schiphol Airport", standardGmtOffset: 1, hasDST: true, shortName: "Amsterdam" },
+        "LSZH": { iata: "ZRH", name: "Zurich", announcementName: "Zurich Airport", standardGmtOffset: 1, hasDST: true, shortName: "Zurich" },
+        "EBBR": { iata: "BRU", name: "Brussels", announcementName: "Brussels Airport", standardGmtOffset: 1, hasDST: true, shortName: "Brussels" },
+        "LIMC": { iata: "MXP", name: "Milan Malpensa", announcementName: "Milan Malpensa Airport", standardGmtOffset: 1, hasDST: true, shortName: "Milan" },
+        "LIRF": { iata: "FCO", name: "Rome Fiumicino", announcementName: "Rome Fiumicino Airport", standardGmtOffset: 1, hasDST: true, shortName: "Rome" },
+        "LEMD": { iata: "MAD", name: "Madrid Barajas", announcementName: "Madrid Barajas Airport", standardGmtOffset: 1, hasDST: true, shortName: "Madrid" },
+        "LEBL": { iata: "BCN", name: "Barcelona El Prat", announcementName: "Barcelona El Prat Airport", standardGmtOffset: 1, hasDST: true, shortName: "Barcelona" },
+        "EKCH": { iata: "CPH", name: "Copenhagen", announcementName: "Copenhagen Airport", standardGmtOffset: 1, hasDST: true, shortName: "Copenhagen" },
+        "LTFM": { iata: "IST", name: "Istanbul", announcementName: "Istanbul Airport", standardGmtOffset: 3, shortName: "Istanbul" },
+
+        // Americas
+        "KJFK": { iata: "JFK", name: "New York JFK", announcementName: "New York John F. Kennedy International Airport", standardGmtOffset: -5, hasDST: true, shortName: "New York" },
+        "KEWR": { iata: "EWR", name: "Newark Liberty", announcementName: "Newark Liberty International Airport", standardGmtOffset: -5, hasDST: true, shortName: "New York" },
+        "KLAX": { iata: "LAX", name: "Los Angeles", announcementName: "Los Angeles International Airport", standardGmtOffset: -8, hasDST: true, shortName: "Los Angeles" },
+        "KSFO": { iata: "SFO", name: "San Francisco", announcementName: "San Francisco International Airport", standardGmtOffset: -8, hasDST: true, shortName: "San Francisco" },
+        "KSEA": { iata: "SEA", name: "Seattle-Tacoma", announcementName: "Seattle-Tacoma International Airport", standardGmtOffset: -8, hasDST: true, shortName: "Seattle" },
+        "KIAH": { iata: "IAH", name: "Houston George Bush", announcementName: "Houston George Bush Intercontinental Airport", standardGmtOffset: -6, hasDST: true, shortName: "Houston" },
+        "KORD": { iata: "ORD", name: "Chicago O'Hare", announcementName: "Chicago O'Hare International Airport", standardGmtOffset: -6, hasDST: true, shortName: "Chicago" },
+        "CYYZ": { iata: "YYZ", name: "Toronto Pearson", announcementName: "Toronto Pearson International Airport", standardGmtOffset: -5, hasDST: true, shortName: "Toronto" },
+        "CYVR": { iata: "YVR", name: "Vancouver", announcementName: "Vancouver International Airport", standardGmtOffset: -8, hasDST: true, shortName: "Vancouver" }
+    };
+
+    const weatherList = [
+        "Partly Cloudy", "Clear Sky", "Overcast", "Mist", "Fog", "Rain", "Heavy Rain", 
+        "Showers", "Thunderstorms", "Snow", "Heavy Snow"
+    ];
+
+    let arrivalClockInterval = null;
+
+    // --- TABS LOGIC ---
+    function openTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(tb => tb.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        document.querySelector(`button[onclick="openTab('${tabName}')"]`).classList.add('active');
+    }
+
+    // --- SHARED FUNCTIONS ---
+    function setOutput(text) {
+        const output = document.getElementById('mainOutput');
+        output.value = text;
+        output.removeAttribute('readonly'); 
+        saveState(); // Save state immediately upon generating
+    }
+
+    function getTimeOfDay() {
+        const hr = new Date().getHours();
+        return hr < 12 ? "morning" : (hr < 18 ? "afternoon" : "evening");
+    }
+
+    function getStandardIntro(prefix, roleId, nameId) {
+        const role = document.getElementById(roleId).value;
+        const name = document.getElementById(nameId).value.trim();
+        if (role === 'Captain') {
+            return `Ladies and Gentlemen, this is your Captain.`;
+        } else {
+            return `Ladies and Gentlemen, this is your Pilot${name ? " " + name : ""}.`;
+        }
+    }
+
+    function formatDuration(valId, unitId) {
+        const val = document.getElementById(valId).value.trim();
+        const unit = document.getElementById(unitId).value;
+        if (!val) return "(Time)";
+        const num = parseInt(val);
+        let u = unit;
+        if (num !== 1) u += "s"; // Pluralize
+        return `${val} ${u}`;
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
+    }
+    
+    // --- LIVE CLOCK LOGIC ---
+    function startLiveDestinationClock(cityName, gmtOffset) {
+        const displayPanel = document.getElementById('liveClockPanel');
+        const displayCity = document.getElementById('liveClockCity');
+        const displayTime = document.getElementById('liveClockTime');
+        const textArea = document.getElementById('mainOutput');
+
+        // Store configuration for state recovery
+        displayPanel.dataset.offset = gmtOffset;
+
+        // Show panel
+        displayPanel.classList.remove('hidden');
+        displayCity.textContent = cityName;
+
+        // Clear existing interval
+        if (arrivalClockInterval) clearInterval(arrivalClockInterval);
+
+        // Define Update Function
+        const updateTick = () => {
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const destTime = new Date(utc + (3600000 * gmtOffset));
+            
+            let hh = destTime.getHours();
+            let mm = destTime.getMinutes();
+            let p = hh < 12 ? "AM" : "PM";
+            let h12 = hh % 12; 
+            if (h12 === 0) h12 = 12;
+            const timeStr = `${h12}:${mm.toString().padStart(2, '0')} ${p}`;
+
+            displayTime.textContent = timeStr;
+
+            const content = textArea.value;
+            const citySafe = escapeRegExp(cityName);
+            const regex = new RegExp(`(Local time in ${citySafe} is )(\\d{1,2}:\\d{2} [AP]M)`);
+            const match = content.match(regex);
+            
+            if (match && match[2] !== timeStr) {
+                const startPos = textArea.selectionStart;
+                const endPos = textArea.selectionEnd;
+                const oldScroll = textArea.scrollTop;
+
+                const newContent = content.replace(regex, `$1${timeStr}`);
+                textArea.value = newContent;
+
+                textArea.setSelectionRange(startPos, endPos);
+                textArea.scrollTop = oldScroll;
+                
+                // Do not trigger full saveState here to avoid infinite disk writes every minute
+                // Instead, saveState happens on manual edits
+            }
+        };
+
+        updateTick();
+        arrivalClockInterval = setInterval(updateTick, 1000);
+    }
+    
+    // --- UI HELPER FOR SPEAKER TOGGLE ---
+    function setupSpeakerToggle(roleSelectId, nameGroupContainerId, nameLabelId = null) {
+        const roleSel = document.getElementById(roleSelectId);
+        if(!roleSel) return;
+        
+        const handler = () => {
+            const role = roleSel.value;
+            const container = document.getElementById(nameGroupContainerId);
+            if(container) {
+                if(role === 'Captain') container.classList.add('hidden');
+                else container.classList.remove('hidden');
+            }
+            if(nameLabelId) {
+                const lbl = document.getElementById(nameLabelId);
+                if(lbl) {
+                    lbl.textContent = role === 'Captain' ? 'Pilot Name' : "Pilot's Name";
+                }
+                if(roleSelectId === 'arr_speakerRole') {
+                    const captGroup = document.getElementById('arr_captainNameGroup');
+                    if(role === 'Captain') captGroup.classList.add('hidden');
+                    else captGroup.classList.remove('hidden');
+                }
+            }
+        };
+        roleSel.addEventListener('change', handler);
+        handler();
+    }
+
+    // --- WELCOME TAB ---
+    function toggleUSWelcome() {
+        // Logic handled in generation
+    }
+
+    function generateWelcome() {
+        if(arrivalClockInterval) { clearInterval(arrivalClockInterval); document.getElementById('liveClockPanel').classList.add('hidden'); }
+
+        const role = document.getElementById('welc_speakerRole').value;
+        const captain = document.getElementById('welc_captainName').value.trim() || "(Name)";
+        const assist = document.getElementById('welc_assistPilot').value.trim() || "(Names)";
+        const flight = document.getElementById('welc_flightNo').value.trim() || "(Flight No)";
+        const dest = document.getElementById('welc_destination').value.trim() || "(Destination)";
+        
+        const hr = document.getElementById('welc_flightHours').value;
+        const min = document.getElementById('welc_flightMinutes').value;
+        let timeStr = "";
+        if(hr) timeStr += `${hr} hour${hr != 1 ? 's' : ''}`;
+        if(min) {
+            if(timeStr) timeStr += " and ";
+            timeStr += `${min} minute${min != 1 ? 's' : ''}`;
+        }
+        if(!timeStr) timeStr = "(Time)";
+
+        const cic = document.getElementById('welc_cicName').value.trim() || "(Name)";
+        const hasIFE = document.getElementById('welc_hasIFE').checked;
+        const isUS = document.getElementById('welc_isUS').checked;
+
+        let intro;
+        let assistText;
+
+        if (role === 'Captain') {
+            intro = `Good ${getTimeOfDay()}, Ladies and Gentlemen. This is your Captain, ${captain}.`;
+            assistText = `Assisting me on the flight deck is/are ${assist}.`;
+        } else {
+            intro = `Good ${getTimeOfDay()}, Ladies and Gentlemen. This is your Pilot ${assist}, welcoming you on behalf of Captain ${captain}.`;
+            assistText = `Our flight time today will be ${timeStr}.`; 
+        }
+
+        let txt = `${intro}\n\n`;
+        if (role === 'Captain') {
+            txt += `On behalf of my crew, I would like to welcome all of you on board flight SQ ${flight} to ${dest}.\n`;
+            txt += `${assistText} Our flight time today will be ${timeStr}.\n\n`;
+        } else {
+            txt += `On behalf of the Captain and crew, I would like to welcome all of you on board flight SQ ${flight} to ${dest}.\n`;
+            txt += `${assistText}\n\n`;
+        }
+        
+        txt += `Under the care of your Cabin Crew-In-Charge ${cic}, our cabin crew will make sure you are well looked after during the flight.\n\n`;
+        txt += `For your safety, please ensure that your seat belt is fastened while seated at all times.\n\n`;
+
+        if (hasIFE) {
+            txt += `We will be departing shortly. You can track the progress of our flight via the Flight Path programme on your inflight-entertainment system.\n\n`;
+        } else {
+            txt += `We will be departing shortly, and I will provide more information on the progress of our flight later.\n\n`;
+        }
+
+        if (isUS) {
+            txt += `For security reasons mandated by the US authorities, we kindly request the cooperation of all passengers not to congregate in any area of the cabin. We thank you for your cooperation and understanding on this matter.\n\n`;
+        }
+
+        txt += `Have a pleasant flight and thank you for choosing Singapore Airlines.`;
+        setOutput(txt);
+    }
+
+    // --- ARRIVAL TAB ---
+    function populateData() {
+        const os = document.getElementById('arr_originAirport');
+        const as = document.getElementById('arr_arrivalAirport');
+        const ws = document.getElementById('arr_weather');
+        
+        let html = '<option value="">Select Airport</option>';
+        Object.keys(airportData).sort((a,b) => (airportData[a].announcementName || airportData[a].name).localeCompare(airportData[b].announcementName || airportData[b].name)).forEach(code => {
+            const disp = airportData[code].announcementName || airportData[code].name;
+            html += `<option value="${code}">${disp} (${code})</option>`;
+        });
+        os.innerHTML = html;
+        as.innerHTML = html;
+
+        let wHtml = '';
+        weatherList.forEach(w => wHtml += `<option value="${w}">${w}</option>`);
+        ws.innerHTML = wHtml;
+    }
+
+    function calculateLocalTime(zuluHH, zuluMM, offset) {
+        if (zuluHH === "" || zuluMM === "") return null;
+        let utcMins = parseInt(zuluHH) * 60 + parseInt(zuluMM);
+        let localMins = utcMins + (offset * 60);
+        while (localMins < 0) localMins += 1440;
+        localMins = localMins % 1440;
+        
+        let hh = Math.floor(localMins / 60);
+        let mm = Math.floor(localMins % 60);
+        
+        let period = hh < 12 ? "AM" : "PM";
+        let h12 = hh % 12;
+        if (h12 === 0) h12 = 12;
+        let mmStr = mm.toString().padStart(2, '0');
+        
+        return {
+            str: `${h12}:${mmStr} ${period}`,
+            hour24: hh
+        };
+    }
+
+    function generateArrival() {
+        const role = document.getElementById('arr_speakerRole').value;
+        const captainName = document.getElementById('arr_captainName').value.trim();
+        const originCode = document.getElementById('arr_originAirport').value;
+        const arrivalCode = document.getElementById('arr_arrivalAirport').value;
+        
+        const manualOffsetActive = document.getElementById('arr_manualOffsetToggle').checked;
+        const manualOffsetVal = document.getElementById('arr_manualOffset').value;
+
+        const tod = document.getElementById('arr_todMinutes').value;
+        const zHH = document.getElementById('arr_zuluHH').value;
+        const zMM = document.getElementById('arr_zuluMM').value;
+        const weather = document.getElementById('arr_weather').value.toLowerCase();
+        const temp = document.getElementById('arr_temp').value;
+        const showFahrenheit = document.getElementById('arr_showFahrenheit').checked;
+        const isSCP = document.getElementById('arr_scp').checked;
+
+        if (!originCode || !arrivalCode) { alert("Please select origin and arrival airports."); return; }
+        
+        const originData = airportData[originCode];
+        const arrivalData = airportData[arrivalCode];
+        
+        let arrivalOffset = arrivalData.standardGmtOffset;
+        if (manualOffsetActive && manualOffsetVal !== "") {
+            arrivalOffset = parseFloat(manualOffsetVal);
+        }
+
+        let originOffset = originData.standardGmtOffset;
+        const originManualToggle = document.getElementById('arr_originManualOffsetToggle').checked;
+        const originManualVal = document.getElementById('arr_originManualOffset').value;
+        if (originManualToggle && originManualVal !== "") {
+            originOffset = parseFloat(originManualVal);
+        }
+
+        const etaObj = calculateLocalTime(zHH, zMM, arrivalOffset);
+        const etaStr = etaObj ? etaObj.str : "(Time)";
+        
+        const diff = arrivalOffset - originOffset;
+        let timeDiffText = "";
+        
+        const originCity = originData.shortName || originData.name;
+        const destCity = arrivalData.shortName || arrivalData.name;
+        
+        let now = new Date();
+        let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        let nd = new Date(utc + (3600000 * arrivalOffset));
+        let destHH = nd.getHours();
+        let destMM = nd.getMinutes();
+        let p = destHH < 12 ? "AM" : "PM";
+        let h12 = destHH % 12; if(h12===0)h12=12;
+        let curTimeStr = `${h12}:${destMM.toString().padStart(2,'0')} ${p}`;
+        
+        if (diff === 0) {
+            timeDiffText = `There is no time difference between ${originCity} and ${destCity}.`;
+            startLiveDestinationClock(arrivalData.shortName, arrivalOffset);
+        } else {
+            startLiveDestinationClock(arrivalData.shortName, arrivalOffset);
+            
+            const diffHours = Math.abs(Math.floor(diff));
+            const diffMins = Math.abs((diff % 1) * 60);
+            let diffStr = `${diffHours} hour${diffHours !== 1 ? 's' : ''}`;
+            if (diffMins > 0) diffStr += ` and ${diffMins} minute${diffMins !== 1 ? 's' : ''}`;
+            
+            const relation = diff > 0 ? "ahead of" : "behind";
+            timeDiffText = `There is a ${diffStr} time difference between ${originCity} and ${destCity}. Local time in ${arrivalData.shortName} is ${curTimeStr}.`;
+        }
+
+        let tempStr = `${temp} degrees Celsius`;
+        if (showFahrenheit && temp) {
+            const f = Math.round((parseInt(temp) * 9/5) + 32);
+            tempStr += `, which is ${f} degrees Fahrenheit`;
+        }
+
+        let intro = "";
+        if (role === 'Captain') {
+            intro = `Ladies and Gentlemen, this is your Captain.`;
+        } else {
+            intro = `Ladies and Gentlemen, this is your Pilot.`;
+        }
+
+        const arrivalFullName = arrivalData.announcementName || arrivalData.name;
+        const descentText = `We hope you have enjoyed your flight with us so far as we will be commencing our descent into ${arrivalFullName} in approximately ${tod} minutes. Our estimated time of arrival is ${etaStr} local time subject to air traffic control instructions.`;
+
+        let dayOrEvening = "day";
+        if (etaObj && etaObj.hour24 !== undefined) {
+            if (etaObj.hour24 >= 18 || etaObj.hour24 < 5) {
+                dayOrEvening = "evening";
+            }
+        }
+        
+        let closingText = "";
+        if (role === 'Captain') {
+            closingText = `On behalf of my crew, we would like to wish you a pleasant ${dayOrEvening} ahead. Once again, thank you for flying with Singapore Airlines.`;
+        } else {
+            closingText = `On behalf of Captain ${captainName || "(Name)"} and the crew, we would like to wish you a pleasant ${dayOrEvening} ahead. Once again, thank you for flying with Singapore Airlines.`;
+        }
+
+        let scpText = "";
+        if (isSCP) {
+            scpText = `\n\nDue to possible turbulence along our arrival path, the seat belt sign will be switched ON earlier. Passengers who wish to use the lavatories may do so now. Thank you for your cooperation.`;
+        }
+
+        const cabinCommand = "Cabin Crew prepare the cabin for arrival.";
+
+        let txt = `${intro}\n\n`;
+        txt += `${descentText}\n\n`;
+        txt += `${timeDiffText}\n\n`;
+        txt += `The current weather at destination is ${weather} with a ground temperature of ${tempStr}.${scpText}\n\n`;
+        txt += `${closingText}\n\n`;
+        txt += `${cabinCommand}`;
+
+        setOutput(txt);
+    }
+
+    // --- IRROPS TAB ---
+    function updateIrropsFields() {
+        if(arrivalClockInterval) { clearInterval(arrivalClockInterval); document.getElementById('liveClockPanel').classList.add('hidden'); }
+        const s = document.getElementById('irr_scenario').value;
+        const reasonField = document.getElementById('irr_reasonText');
+        const actionField = document.getElementById('irr_action');
+        
+        let text = "";
+        let defAction = "delayed";
+
+        switch(s) {
+            case 'late_inbound': text = "the late arrival of the inbound aircraft"; break;
+            case 'late_boarding': text = "late boarding (passengers not seated)"; break;
+            case 'congestion': text = "airport congestion"; break;
+            case 'weather_dest': text = "adverse weather at the destination"; break;
+            case 'atc': text = "air traffic control restrictions"; break;
+            case 'crew': text = "crew requirements"; break;
+            case 'tech_simple': text = "a technical issue (e.g. with aircraft tyres)"; break;
+            case 'tech_complex': text = "a technical issue"; break;
+            case 'baggage': text = "the offloading of baggage for passengers who missed the flight"; break;
+            
+            case 'medical': text = "passengers requiring immediate medical attention"; defAction = 'return'; break;
+            case 'lithium': text = "the removal of spare lithium batteries in the cargo hold"; defAction = 'return'; break;
+            case 'security': text = "security requirements"; defAction = 'return'; break;
+            case 'tech_rtb': text = "a technical issue"; defAction = 'return'; break;
+            case 'unruly': text = "an unforeseen situation involving a passenger that requires immediate attention"; defAction = 'return'; break;
+            
+            case 'weather_div': text = "deteriorating weather conditions over the destination"; defAction = 'divert'; break;
+            case 'atc_closure': text = "airspace closure"; defAction = 'divert'; break;
+        }
+        
+        reasonField.value = text;
+        actionField.value = defAction;
+        checkIrrAction();
+    }
+
+    function checkIrrAction() {
+        const act = document.getElementById('irr_action').value;
+        const durLabel = document.getElementById('irr_durationLabel');
+        const locInput = document.getElementById('irr_durationLocation');
+        const timeGroup = document.getElementById('irr_durationTimeGroup');
+        
+        if (act === 'delayed') {
+            durLabel.textContent = "Duration";
+            locInput.classList.add('hidden');
+            timeGroup.classList.remove('hidden');
+        } else {
+            durLabel.textContent = "Airport/Location";
+            locInput.classList.remove('hidden');
+            timeGroup.classList.add('hidden');
+        }
+    }
+
+    function generateIrrops() {
+        if(arrivalClockInterval) { clearInterval(arrivalClockInterval); document.getElementById('liveClockPanel').classList.add('hidden'); }
+        const intro = getStandardIntro('irr', 'irr_speakerRole', 'irr_speakerName');
+        const reason = document.getElementById('irr_reasonText').value;
+        const action = document.getElementById('irr_action').value;
+        const closing = document.getElementById('irr_closing').value;
+        
+        let actText = "";
+        let val = "";
+        
+        if (action === 'delayed') {
+             val = formatDuration('irr_durationVal', 'irr_durationUnit');
+             actText = `will be delayed for approximately ${val}`;
+        } else {
+             val = document.getElementById('irr_durationLocation').value;
+             if (action === 'return') actText = `had to return to ${val || "(Location)"}`;
+             else actText = `had to divert to ${val || "(Location)"}`;
+        }
+
+        let closeText = "";
+        if (closing === 'gate') closeText = "I shall come back to you on the situation once we are at the gate.";
+        else if (closing === 'further') closeText = "I shall come back to you on the situation once we have further updates.";
+        
+        if (document.getElementById('irr_scenario').value === 'weather_div') {
+             actText += ". The adverse weather is forecast to last for at least the next (Time), and we anticipate a significant delay before we can land";
+        }
+
+        let txt = `${intro}\n\n`;
+        txt += `Due to ${reason}, the flight ${actText}.\n\n`;
+        txt += `I would like to apologise for the inconvenience caused.\n\n`;
+        if (closeText) txt += `${closeText}`;
+
+        setOutput(txt);
+    }
+
+    // --- CREEPING DELAY TAB ---
+    function generateCreep() {
+        if(arrivalClockInterval) { clearInterval(arrivalClockInterval); document.getElementById('liveClockPanel').classList.add('hidden'); }
+        const intro = getStandardIntro('crp', 'crp_speakerRole', 'crp_speakerName');
+        const stage = document.querySelector('input[name="creepStage"]:checked').value;
+        const depTime = document.getElementById('creep_depTime').value;
+        const resolvedGroup = document.getElementById('creep_resolvedTimeGroup');
+
+        if (stage === 'resolved') resolvedGroup.classList.remove('hidden');
+        else resolvedGroup.classList.add('hidden');
+
+        let txt = "";
+        
+        if (stage === 'initial') {
+            txt = `${intro} Our flight departure will be slightly delayed due to a technical issue. We apologise for the inconvenience caused. We are working with the ground staff and will provide an update soon as we can. Please reach out to our cabin crew if you require any assistance. Thank you.`;
+        } else if (stage === '30') {
+            txt = `${intro} We regret the extended delay caused by the technical issue. Please accept our sincere apologies for the inconvenience caused. We are in regular contact with the ground staff and the engineers who are working to rectify the issue. Thank you for your patience.`;
+        } else if (stage === '60') {
+            txt = `${intro} Thank you for your patience. We have been advised that more time is required to resolve the technical issue and we sincerely apologise for the delay.\n\nTo facilitate a quicker departure once the issue is fixed, all passengers will continue to remain on board the aircraft. Our Cabin Crew will continue to serve refreshments and ensure that you are comfortable on board the aircraft. Please reach out to our Cabin Crew if you require assistance. Thank you, once again, for your understanding.`;
+        } else if (stage === '180') {
+            txt = `${intro} Thank you for your continued patience. Based on the latest update from our engineers, we understand that more time is required to rectify the technical issue.\n\nAs a result, we would like to inform you that all passengers have the option to disembark or voluntarily offload themselves.\n\nPlease reach out to our Cabin Crew if you require any assistance. We will provide updates as soon as we can. Thank you, once again, for your patience and understanding.`;
+        } else if (stage === 'cancel') {
+            txt = `${intro} Thank you for your patience. Our engineers have advised that the technical issue cannot be rectified at this time, and we regret that we have to cancel this flight.\n\nWe sincerely apologise for the inconvenience this has caused.\n\nOur Cabin Crew will guide you as you disembark the aircraft, and our ground staff will provide further assistance inside the gatehold room. Thank you for your understanding, and we are sorry once again.`;
+        } else if (stage === 'resolved') {
+            txt = `${intro} I have some good news for you. The technical issue has been resolved. Our estimated departure time is ${depTime || "(Time)"}. We thank you for your continued patience. In the meantime, our Cabin Crew will continue to serve refreshments, and you are welcome to enjoy the inflight-entertainment. We will begin preparations for departure shortly. Please reach out to our Cabin Crew if you require assistance. Thank you.`;
+        }
+
+        setOutput(txt);
+    }
+
+    // --- TURBULENCE TAB ---
+    function generateTurbulence(type) {
+        if(arrivalClockInterval) { clearInterval(arrivalClockInterval); document.getElementById('liveClockPanel').classList.add('hidden'); }
+        const intro = getStandardIntro('trb', 'trb_speakerRole', 'trb_speakerName');
+        let txt = "";
+        if (type === 'pa1') {
+            txt = `${intro} For your safety, please fasten your seat belts.\n\n(Internal to Crew) Cabin Crew, to continue service/duties with caution.`;
+        } else if (type === 'pa2') {
+            txt = `(Internal to Crew) Cabin Crew, please suspend service and be seated.\n\n${intro} For your safety, please fasten your seat belts.`;
+        } else if (type === 'reassure') {
+            const nature = document.getElementById('turb_nature').value || "(Nature)";
+            const dur = formatDuration('turb_durationVal', 'turb_durationUnit');
+            txt = `${intro} We are currently experiencing unforecasted turbulence associated with ${nature}. We expect the situation to improve in ${dur}. For your safety, please remain seated with your seat belt fastened.`;
+        }
+        setOutput(txt);
+    }
+
+    // --- MISC TAB ---
+    function generateMisc(type) {
+        if(arrivalClockInterval) { clearInterval(arrivalClockInterval); document.getElementById('liveClockPanel').classList.add('hidden'); }
+        const intro = getStandardIntro('msc', 'msc_speakerRole', 'msc_speakerName');
+        let txt = "";
+        if (type === 'goaround') {
+            const r = document.getElementById('misc_goAroundReason').value || "(Reason)";
+            const t = formatDuration('misc_goAroundVal', 'misc_goAroundUnit');
+            txt = `${intro}\n\nDue to ${r}, we have discontinued our approach and landing and will be making another approach shortly.\n\nPlease remain seated with your seat belts fastened. We expect to land in ${t}.\n\nRest assured that there is no cause for concern. Thank you for your patience and understanding.`;
+        } else if (type === 'warm') {
+            const t = formatDuration('misc_warmVal', 'misc_warmUnit');
+            txt = `${intro} speaking.\n\nYou may have noticed that the cabin temperature is warmer than usual at the moment. This is due to the temporary unavailability of our ground cooling system.\n\nOnce we start our engines in approximately ${t}, the aircraft's main air conditioning will become fully operational, and the cabin will cool down quickly.\n\nWe appreciate your patience and understanding. Thank you.`;
+        }
+        setOutput(txt);
+    }
+
+    // --- INIT ---
+    document.addEventListener('DOMContentLoaded', () => {
+        populateData();
+        
+        // Manual GMT Toggle (Arrival)
+        const tog = document.getElementById('arr_manualOffsetToggle');
+        const grp = document.getElementById('arr_manualOffsetGroup');
+        tog.addEventListener('change', () => {
+             if(tog.checked) grp.classList.remove('hidden');
+             else grp.classList.add('hidden');
+        });
+
+        // Manual GMT Toggle (Origin)
+        const togOrigin = document.getElementById('arr_originManualOffsetToggle');
+        const grpOrigin = document.getElementById('arr_originManualOffsetGroup');
+        togOrigin.addEventListener('change', () => {
+             if(togOrigin.checked) grpOrigin.classList.remove('hidden');
+             else grpOrigin.classList.add('hidden');
+        });
+
+        // Setup Speaker Toggles
+        // ARRIVAL TAB: Custom logic for Captain Name display (show when Pilot selected)
+        const arrRoleSel = document.getElementById('arr_speakerRole');
+        if(arrRoleSel) {
+            arrRoleSel.addEventListener('change', () => {
+                const isPilot = arrRoleSel.value === 'Pilot';
+                const captGroup = document.getElementById('arr_captainNameGroup');
+                if(isPilot) captGroup.classList.remove('hidden');
+                else captGroup.classList.add('hidden');
+            });
+        }
+
+        // Other Tabs: Standard toggle
+        setupSpeakerToggle('irr_speakerRole', 'irr_speakerNameGroup');
+        setupSpeakerToggle('crp_speakerRole', 'crp_speakerNameGroup');
+        setupSpeakerToggle('trb_speakerRole', 'trb_speakerNameGroup');
+        setupSpeakerToggle('msc_speakerRole', 'msc_speakerNameGroup');
+
+        // Copy Button
+        document.getElementById('copyButton').addEventListener('click', () => {
+            const el = document.getElementById('mainOutput');
+            if(el.value) {
+                el.select();
+                document.execCommand('copy');
+                alert("Copied to clipboard!");
+            }
+        });
+        
+        // Dark Mode
+        document.getElementById('darkModeToggle').addEventListener('change', function() {
+            if(this.checked) document.body.classList.add('night-mode');
+            else document.body.classList.remove('night-mode');
+        });
+
+        // Swap Airports
+        document.getElementById('swapAirportsButton').addEventListener('click', () => {
+            const o = document.getElementById('arr_originAirport');
+            const a = document.getElementById('arr_arrivalAirport');
+            const temp = o.value;
+            o.value = a.value;
+            a.value = temp;
+            saveState(); // Trigger save after swap
+        });
+
+        // Search logic
+        ['arr_origin', 'arr_arrival'].forEach(prefix => {
+            document.getElementById(`${prefix}Search`).addEventListener('input', function() {
+                const val = this.value.toUpperCase();
+                const sel = document.getElementById(`${prefix}Airport`);
+                for (let i = 0; i < sel.options.length; i++) {
+                    const txt = sel.options[i].text.toUpperCase();
+                    if (txt.includes(val) || sel.options[i].value.includes(val)) {
+                        sel.selectedIndex = i;
+                        break;
+                    }
+                }
+                saveState(); // Save state on search
+            });
+        });
+        
+        // --- OFFLINE RESTORE & UI SYNC ---
+        const wasRestored = restoreState();
+        
+        // Ensure UI panels show correctly based on restored checkbox states
+        if (arrRoleSel) arrRoleSel.dispatchEvent(new Event('change'));
+        ['arr_manualOffsetToggle', 'arr_originManualOffsetToggle', 'irr_speakerRole', 'crp_speakerRole', 'trb_speakerRole', 'msc_speakerRole', 'irr_scenario', 'irr_action'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.dispatchEvent(new Event('change'));
+        });
+
+        if (!wasRestored) {
+            checkIrrAction();
+        }
+
+        // Attach listeners so everything saves automatically from now on
+        attachStateListeners();
+    });
+  </script>
+</body>
+</html>
